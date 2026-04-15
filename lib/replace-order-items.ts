@@ -1,5 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import type { OrderLineInput } from "@/lib/order-lines";
+import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
+import {
+  incrementProductStock,
+  InsufficientStockError,
+  tryDecrementProductStock,
+} from "@/lib/order-stock";
 
 /** Parse JSON body `items` the same way as storefront order edit. */
 export function parseJsonOrderLines(items: unknown): OrderLineInput[] {
@@ -11,13 +17,6 @@ export function parseJsonOrderLines(items: unknown): OrderLineInput[] {
     }))
     .filter((i) => i.productId && i.quantity > 0);
 }
-import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
-import { hasValidProductImage } from "@/lib/product-image";
-import {
-  incrementProductStock,
-  InsufficientStockError,
-  tryDecrementProductStock,
-} from "@/lib/order-stock";
 
 /**
  * Replaces all order lines: restores stock for old lines, then reserves for new lines
@@ -53,9 +52,6 @@ export async function replaceOrderItemsForOrder(
     }
     if (line.quantity > MAX_ORDER_LINE_QUANTITY) {
       throw new Error(`Maximum ${MAX_ORDER_LINE_QUANTITY} units per product (“${p.name}”).`);
-    }
-    if (!hasValidProductImage(p.imageUrl)) {
-      throw new Error(`“${p.name}” is not available without a photo.`);
     }
     const ok = await tryDecrementProductStock(tx, line.productId, line.quantity);
     if (!ok) {

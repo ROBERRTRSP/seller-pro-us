@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server";
-import { Role, type Prisma } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
-
-/** Only products with a photo appear in the catalog (non-null, non-empty URL). */
-const catalogPhotoWhere: Prisma.ProductWhereInput = {
-  AND: [{ imageUrl: { not: null } }, { NOT: { imageUrl: "" } }],
-};
+import { productCatalogImageVisible } from "@/lib/product-image";
 
 export async function GET() {
   const gate = await requireRole(Role.CLIENT);
   if ("error" in gate && gate.error) return gate.error;
 
   const rows = await prisma.product.findMany({
-    where: catalogPhotoWhere,
     orderBy: { name: "asc" },
     select: {
       id: true,
@@ -24,6 +19,7 @@ export async function GET() {
       promoBadge: true,
       stock: true,
       imageUrl: true,
+      imagePending: true,
       category: { select: { name: true, sortOrder: true } },
     },
   });
@@ -36,7 +32,8 @@ export async function GET() {
     compareAtPriceCents: p.compareAtPriceCents,
     promoBadge: p.promoBadge,
     stock: p.stock,
-    imageUrl: p.imageUrl,
+    imagePending: p.imagePending,
+    imageUrl: productCatalogImageVisible(p.imagePending, p.imageUrl) ? p.imageUrl : null,
     category: p.category?.name ?? null,
     categorySortOrder: p.category?.sortOrder ?? 999999,
   }));

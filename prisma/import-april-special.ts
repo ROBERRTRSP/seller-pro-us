@@ -1,6 +1,7 @@
 /**
  * Importa / actualiza productos «APRIL SPECIAL» (catálogo compartido por el usuario).
- * Imágenes «pendiente» → placeholder picsum por nombre (sustituir en admin cuando haya foto real).
+ * Imagen: todas las filas quedan con foto pendiente hasta subir archivo o URL verificada en Admin.
+ * (Referencias Commons opcionales en `april-product-image-urls.ts` — no se aplican solas.)
  *
  * Uso: npx tsx prisma/import-april-special.ts
  */
@@ -52,11 +53,6 @@ const ROWS: [string, string, number, string][] = [
   ["Display 2024", "Display de accesorios para teléfono", 19.99, "Electronics"],
 ];
 
-function placeholderImageUrl(productName: string): string {
-  const seed = encodeURIComponent(productName.replace(/\s+/g, "-").slice(0, 48));
-  return `https://picsum.photos/seed/${seed}/600/450`;
-}
-
 async function main() {
   const maxSort =
     (await prisma.category.aggregate({ _max: { sortOrder: true } }))._max.sortOrder ?? 0;
@@ -83,8 +79,6 @@ async function main() {
     const priceCents = Math.round(priceDollars * 100);
     const stock = 0;
     const promoBadge = PROMO.slice(0, MAX_PROMO_BADGE_LEN);
-    const imageUrl = placeholderImageUrl(name);
-
     const existing = await prisma.product.findFirst({ where: { name } });
     const base = {
       description,
@@ -93,7 +87,8 @@ async function main() {
       promoBadge,
       categoryId: category.id,
       stock,
-      imageUrl,
+      imageUrl: null as string | null,
+      imagePending: true,
     };
 
     if (existing) {

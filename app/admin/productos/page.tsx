@@ -7,6 +7,13 @@ import { formatCents } from "@/lib/money";
 import { ProductPhotoUpload } from "@/components/ProductPhotoUpload";
 import { MAX_PROMO_BADGE_LEN } from "@/lib/product-field-limits";
 import { isOutOfStock, isUnlimitedStock, UNLIMITED_STOCK } from "@/lib/product-stock";
+import { isTrustedOperatorUploadImageUrl } from "@/lib/product-image";
+
+function externalImageUrlNeedsVerification(url: string): boolean {
+  const t = url.trim();
+  if (!t) return false;
+  return !isTrustedOperatorUploadImageUrl(t);
+}
 
 type CategoryOption = { id: string; name: string; sortOrder: number };
 
@@ -20,6 +27,7 @@ type Product = {
   category: CategoryOption | null;
   stock: number;
   imageUrl: string | null;
+  imagePending: boolean;
 };
 
 const BADGE_PRESETS = ["", "Rollback", "Clearance", "Reduced price"];
@@ -55,6 +63,7 @@ export default function AdminProductosPage() {
     stock: "99",
     unlimitedStock: false,
     imageUrl: "",
+    imageVerified: false,
   });
   const [editForm, setEditForm] = useState({
     name: "",
@@ -66,6 +75,7 @@ export default function AdminProductosPage() {
     stock: "0",
     unlimitedStock: false,
     imageUrl: "",
+    imageVerified: false,
   });
 
   async function load() {
@@ -110,6 +120,7 @@ export default function AdminProductosPage() {
       stock: isUnlimitedStock(p.stock) ? "99" : String(p.stock),
       unlimitedStock: isUnlimitedStock(p.stock),
       imageUrl: p.imageUrl ?? "",
+      imageVerified: false,
     });
     setError("");
   }
@@ -118,8 +129,11 @@ export default function AdminProductosPage() {
     e.preventDefault();
     if (!editingId) return;
     setError("");
-    if (!editForm.imageUrl.trim()) {
-      setError("La tienda necesita una foto del producto.");
+    const ext = editForm.imageUrl.trim();
+    if (externalImageUrlNeedsVerification(ext) && !editForm.imageVerified) {
+      setError(
+        "Para una URL externa, marca la casilla confirmando marca, tipo de producto y presentación, o sube un archivo.",
+      );
       return;
     }
     const priceCents = Math.round(parseFloat(editForm.priceDollars.replace(",", ".")) * 100) || 0;
@@ -146,6 +160,7 @@ export default function AdminProductosPage() {
           stock,
           unlimitedStock: editForm.unlimitedStock,
           imageUrl: editForm.imageUrl.trim() || null,
+          imageVerified: editForm.imageVerified,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -163,8 +178,11 @@ export default function AdminProductosPage() {
   async function createProduct(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!form.imageUrl.trim()) {
-      setError("La tienda necesita una foto del producto.");
+    const extNew = form.imageUrl.trim();
+    if (externalImageUrlNeedsVerification(extNew) && !form.imageVerified) {
+      setError(
+        "Para una URL externa, marca la casilla confirmando marca, tipo de producto y presentación, o sube un archivo. También puedes crear el producto solo con foto pendiente (sin URL).",
+      );
       return;
     }
     const priceCents = Math.round(parseFloat(form.priceDollars.replace(",", ".")) * 100) || 0;
@@ -189,6 +207,7 @@ export default function AdminProductosPage() {
           stock,
           unlimitedStock: form.unlimitedStock,
           imageUrl: form.imageUrl.trim() || null,
+          imageVerified: form.imageVerified,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -206,6 +225,7 @@ export default function AdminProductosPage() {
         stock: "99",
         unlimitedStock: false,
         imageUrl: "",
+        imageVerified: false,
       });
       await load();
     } finally {
@@ -228,11 +248,13 @@ export default function AdminProductosPage() {
     <div>
       <h1 className="text-2xl font-semibold">Productos</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        La tienda necesita una foto. Opcional: precio «antes», distintivo promocional (Rollback, etc.) y{" "}
+        Puedes publicar con <strong>foto pendiente</strong> (sin inventar imágenes). Para mostrar foto en
+        la tienda: sube archivo o pega URL directa (.jpg, .png, …) y confirma que coincide en marca,
+        tipo y presentación. Opcional: precio «antes», distintivo (Rollback, etc.) y{" "}
         <Link href="/admin/categorias" className="text-[var(--accent)] hover:underline">
           categoría
         </Link>
-        . Sin categoría aparecen como «Otros» en la tienda.
+        .
       </p>
 
       <form
@@ -291,24 +313,37 @@ export default function AdminProductosPage() {
         <ProductPhotoUpload
           inputId="admin-new-product-photo"
           value={form.imageUrl}
-          onChange={(url) => setForm((f) => ({ ...f, imageUrl: url }))}
+          onChange={(url) => setForm((f) => ({ ...f, imageUrl: url, imageVerified: false }))}
           disabled={creating}
         />
         <input
           type="text"
           inputMode="url"
           autoComplete="off"
-          placeholder="O URL de imagen (obligatoria si no subiste foto)"
+          placeholder="URL directa a imagen (opcional; si no hay, queda pendiente)"
           value={form.imageUrl.startsWith("/uploads/") ? "" : form.imageUrl}
           onChange={(e) => {
             const v = e.target.value;
             setForm((f) => {
               if (f.imageUrl.startsWith("/uploads/") && v.trim() === "") return f;
-              return { ...f, imageUrl: v };
+              return { ...f, imageUrl: v, imageVerified: false };
             });
           }}
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
         />
+        <label className="flex cursor-pointer items-start gap-2 text-xs text-[var(--muted)]">
+          <input
+            type="checkbox"
+            checked={form.imageVerified}
+            onChange={(e) => setForm((f) => ({ ...f, imageVerified: e.target.checked }))}
+            className="mt-0.5 shrink-0"
+          />
+          <span>
+            Confirmo que la imagen (vista previa o URL) coincide en <strong>marca</strong>,{" "}
+            <strong>tipo de producto</strong> y <strong>presentación</strong> con este artículo.
+            Obligatorio para enlaces externos; las subidas cuentan como verificación del operador.
+          </span>
+        </label>
         <div className="flex flex-wrap gap-3">
           <input
             required
@@ -365,7 +400,7 @@ export default function AdminProductosPage() {
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 flex-1 gap-3">
-                {p.imageUrl ? (
+                {!p.imagePending && p.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={p.imageUrl}
@@ -373,10 +408,9 @@ export default function AdminProductosPage() {
                     className="h-14 w-14 shrink-0 rounded-lg object-cover"
                   />
                 ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-950/20 text-center text-[10px] leading-tight text-amber-200/90">
-                    sin foto
-                    <br />
-                    (no en catálogo)
+                  <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg border border-amber-500/40 bg-amber-950/25 px-0.5 text-center text-[9px] font-semibold leading-tight text-amber-100/95">
+                    <span>Foto</span>
+                    <span>pendiente</span>
                   </div>
                 )}
                 <div className="min-w-0">
@@ -394,7 +428,9 @@ export default function AdminProductosPage() {
                         : `Existencias ${p.stock}`}
                   </p>
                   <p className="text-[11px] text-[var(--muted)]">
-                    {[p.category?.name, p.promoBadge].filter(Boolean).join(" · ") || "—"}
+                    {[p.category?.name, p.promoBadge, p.imagePending ? "Imagen pendiente" : null]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
                   </p>
                 </div>
               </div>
@@ -467,24 +503,36 @@ export default function AdminProductosPage() {
                 <ProductPhotoUpload
                   inputId={editingId ? `admin-edit-product-${editingId}` : "admin-edit-product"}
                   value={editForm.imageUrl}
-                  onChange={(url) => setEditForm((f) => ({ ...f, imageUrl: url }))}
+                  onChange={(url) => setEditForm((f) => ({ ...f, imageUrl: url, imageVerified: false }))}
                   disabled={editSaving}
                 />
                 <input
                   type="text"
                   inputMode="url"
                   autoComplete="off"
-                  placeholder="O URL de imagen (obligatoria si no hay subida)"
+                  placeholder="URL directa a imagen (opcional)"
                   value={editForm.imageUrl.startsWith("/uploads/") ? "" : editForm.imageUrl}
                   onChange={(e) => {
                     const v = e.target.value;
                     setEditForm((f) => {
                       if (f.imageUrl.startsWith("/uploads/") && v.trim() === "") return f;
-                      return { ...f, imageUrl: v };
+                      return { ...f, imageUrl: v, imageVerified: false };
                     });
                   }}
                   className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
                 />
+                <label className="flex cursor-pointer items-start gap-2 text-xs text-[var(--muted)]">
+                  <input
+                    type="checkbox"
+                    checked={editForm.imageVerified}
+                    onChange={(e) => setEditForm((f) => ({ ...f, imageVerified: e.target.checked }))}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span>
+                    Confirmo marca, tipo de producto y presentación para esta imagen (obligatorio si
+                    usas URL externa).
+                  </span>
+                </label>
                 <div className="flex flex-wrap gap-3">
                   <input
                     required

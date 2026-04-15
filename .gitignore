@@ -5,6 +5,9 @@
 *.tsbuildinfo
 .vercel
 
+# Copia duplicada del proyecto (no versionar)
+seller-pro-us/
+
 .env
 .env.*
 !.env.example

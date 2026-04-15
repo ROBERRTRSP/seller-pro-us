@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
-import { hasValidProductImage } from "@/lib/product-image";
+import { resolveProductImageForAdminCreate } from "@/lib/product-image";
 import { MAX_PROMO_BADGE_LEN } from "@/lib/product-field-limits";
 import { UNLIMITED_STOCK } from "@/lib/product-stock";
 
@@ -39,6 +39,8 @@ export async function POST(req: Request) {
   let body: {
     name?: string;
     description?: string;
+    sku?: string | null;
+    barcode?: string | null;
     priceCents?: number;
     compareAtPriceCents?: number | null;
     promoBadge?: string | null;
@@ -48,6 +50,8 @@ export async function POST(req: Request) {
     inStock?: boolean;
     unlimitedStock?: boolean;
     imageUrl?: string | null;
+    /** Obligatorio para URLs externas (no subida): confirma marca, tipo y presentación. */
+    imageVerified?: boolean;
   };
   try {
     body = await req.json();
@@ -57,9 +61,19 @@ export async function POST(req: Request) {
 
   const name = String(body.name ?? "").trim();
   const description = String(body.description ?? "").trim();
+  const sku = body.sku != null && String(body.sku).trim() !== "" ? String(body.sku).trim() : null;
+  const barcode = body.barcode != null && String(body.barcode).trim() !== "" ? String(body.barcode).trim() : null;
   const priceCents = Math.max(0, Math.floor(Number(body.priceCents) || 0));
   const stock = parseStock(body);
-  const imageUrl = body.imageUrl ? String(body.imageUrl).trim() : null;
+
+  const resolved = resolveProductImageForAdminCreate({
+    imageUrl: body.imageUrl,
+    imageVerified: body.imageVerified,
+  });
+  if (!resolved.ok) {
+    return NextResponse.json({ error: resolved.error }, { status: 400 });
+  }
+  const { imageUrl, imagePending } = resolved;
   const compareRaw = body.compareAtPriceCents;
   const compareAtPriceCents =
     compareRaw === null || compareRaw === undefined
@@ -89,25 +103,19 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  if (!hasValidProductImage(imageUrl)) {
-    return NextResponse.json(
-      {
-        error: "A photo is required: upload an image or provide a URL to publish in the catalog.",
-      },
-      { status: 400 },
-    );
-  }
-
   const p = await prisma.product.create({
     data: {
       name,
       description,
+      sku,
+      barcode,
       priceCents,
       compareAtPriceCents,
       promoBadge,
       categoryId,
       stock,
       imageUrl,
+      imagePending,
     },
     include: { category: { select: { id: true, name: true, sortOrder: true } } },
   });

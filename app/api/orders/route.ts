@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
-import { hasValidProductImage } from "@/lib/product-image";
 import { mergeOrderLines } from "@/lib/order-lines";
 import { InsufficientStockError, tryDecrementProductStock } from "@/lib/order-stock";
 import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
@@ -52,9 +51,6 @@ export async function POST(req: Request) {
         if (line.quantity > MAX_ORDER_LINE_QUANTITY) {
           throw new Error(`MAX_QTY:${p.name}`);
         }
-        if (!hasValidProductImage(p.imageUrl)) {
-          throw new Error(`NO_PHOTO:${p.name}`);
-        }
         const ok = await tryDecrementProductStock(tx, line.productId, line.quantity);
         if (!ok) {
           throw new InsufficientStockError(p.name);
@@ -95,15 +91,6 @@ export async function POST(req: Request) {
         const name = e.message.slice("MAX_QTY:".length);
         return NextResponse.json(
           { error: `Máximo ${MAX_ORDER_LINE_QUANTITY} unidades por producto («${name}»).` },
-          { status: 400 },
-        );
-      }
-      if (e.message.startsWith("NO_PHOTO:")) {
-        const name = e.message.slice("NO_PHOTO:".length);
-        return NextResponse.json(
-          {
-            error: `«${name}» no se puede vender sin foto. Actualiza el catálogo o vacía el carrito.`,
-          },
           { status: 400 },
         );
       }

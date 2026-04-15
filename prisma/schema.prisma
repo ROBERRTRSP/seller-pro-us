@@ -57,6 +57,10 @@ model Product {
   id                   String      @id @default(cuid())
   name                 String
   description          String
+  /** Internal / import code (AAA Wholesale, etc.). */
+  sku                  String?     @unique
+  /** EAN-12 / UPC style code for scanning. */
+  barcode              String?     @unique
   priceCents           Int
   /** Strikethrough “Was” price in catalog; must be greater than priceCents when set. */
   compareAtPriceCents  Int?
@@ -66,6 +70,8 @@ model Product {
   category             Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   /** Units available to sell (0 = out of stock). Reserved atomically when an order is placed or edited; restored on cancel. */
   stock                Int         @default(25)
+  /** When true, la tienda muestra «foto pendiente» y no usa imageUrl aunque exista borrador en historial (siempre null en flujo nuevo). */
+  imagePending         Boolean     @default(false)
   imageUrl             String?
   createdAt            DateTime      @default(now())
   orderItems           OrderItem[]

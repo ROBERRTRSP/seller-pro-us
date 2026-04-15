@@ -18,6 +18,7 @@ type Product = {
   category: string | null;
   categorySortOrder?: number;
   stock: number;
+  imagePending: boolean;
   imageUrl: string | null;
 };
 
@@ -92,10 +93,7 @@ export default function TiendaPage() {
         return;
       }
       if (Array.isArray(d)) {
-        const withPhoto = d.filter(
-          (p: Product) => typeof p.imageUrl === "string" && p.imageUrl.trim().length > 0,
-        );
-        setProducts(withPhoto);
+        setProducts(d as Product[]);
       } else {
         setProducts([]);
         setMsg("Respuesta inesperada del servidor.");
@@ -376,8 +374,8 @@ export default function TiendaPage() {
 
       {products.length === 0 ? (
         <p className="mt-10 rounded-xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-600 shadow-sm">
-          Aún no hay artículos en el catálogo. En administración, cada producto necesita una foto
-          para mostrarse aquí.
+          Aún no hay artículos en el catálogo. Crea productos en administración; pueden mostrarse con
+          «foto pendiente» hasta que subas una imagen verificada.
         </p>
       ) : null}
     </div>
@@ -388,6 +386,12 @@ const BROKEN_IMG =
   "data:image/svg+xml," +
   encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect fill="#e5e7eb" width="200" height="200"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-family="system-ui" font-size="12">Foto</text></svg>`,
+  );
+
+const PENDING_IMG =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect fill="#fef3c7" width="200" height="200"/><text x="50%" y="46%" dominant-baseline="middle" text-anchor="middle" fill="#92400e" font-family="system-ui" font-size="11" font-weight="600">Foto pendiente</text><text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" fill="#b45309" font-family="system-ui" font-size="9">Marca / tipo / presentación</text></svg>`,
   );
 
 function ProductTile({
@@ -401,21 +405,28 @@ function ProductTile({
   canAdd: boolean;
   onAdd: (product: Product, e?: MouseEvent) => void;
 }) {
-  const [imgSrc, setImgSrc] = useState(p.imageUrl ?? "");
+  const [imgSrc, setImgSrc] = useState(p.imagePending ? "" : (p.imageUrl ?? ""));
+  useEffect(() => {
+    if (p.imagePending) return;
+    setImgSrc(p.imageUrl ?? "");
+  }, [p.imagePending, p.imageUrl]);
   const hasCompare =
     p.compareAtPriceCents != null && p.compareAtPriceCents > p.priceCents;
+  const showPending = p.imagePending;
   return (
     <article className="flex flex-col rounded-lg border border-neutral-200 bg-white p-2 shadow-sm transition-shadow hover:shadow-md sm:p-3">
       <div className="relative aspect-square w-full overflow-hidden rounded-md bg-neutral-50">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imgSrc || BROKEN_IMG}
+          src={showPending ? PENDING_IMG : imgSrc || BROKEN_IMG}
           alt=""
           className="h-full w-full object-contain p-1"
           loading="lazy"
           decoding="async"
           fetchPriority="low"
-          onError={() => setImgSrc(BROKEN_IMG)}
+          onError={() => {
+            if (!showPending) setImgSrc(BROKEN_IMG);
+          }}
         />
         {p.promoBadge ? (
           <span

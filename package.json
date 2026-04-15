@@ -16,6 +16,7 @@
     "db:seed": "prisma db seed",
     "db:clear": "npx tsx prisma/clear-store.ts",
     "db:import:april-special": "npx tsx prisma/import-april-special.ts",
+    "db:apply:verified-images": "npx tsx prisma/apply-verified-catalog-images.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {

@@ -1,7 +1,13 @@
+import { readFileSync } from "fs";
+import path from "path";
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { CATALOG_SECTION_ORDER } from "../lib/catalog-sections";
-import { hasValidProductImage } from "../lib/product-image";
+import {
+  isForbiddenStockImageUrl,
+  isTechnicallyDirectProductImageUrl,
+} from "../lib/product-image";
+import { UNLIMITED_STOCK } from "../lib/product-stock";
 
 const prisma = new PrismaClient();
 
@@ -54,8 +60,25 @@ type SeedRow = {
   promoBadge: string | null;
   categoryName: string;
   stock: number;
-  imageUrl: string;
+  /** Solo si `imageVerified` (no usar fotos genéricas ni no comprobadas). */
+  imageUrl?: string | null;
+  imageVerified?: boolean;
+  sku?: string | null;
+  barcode?: string | null;
 };
+
+function seedPhotoFields(row: Pick<SeedRow, "imageUrl" | "imageVerified">): {
+  imageUrl: string | null;
+  imagePending: boolean;
+} {
+  if (row.imageVerified === true && row.imageUrl?.trim()) {
+    const u = row.imageUrl.trim();
+    if (isTechnicallyDirectProductImageUrl(u) && !isForbiddenStockImageUrl(u)) {
+      return { imageUrl: u, imagePending: false };
+    }
+  }
+  return { imageUrl: null, imagePending: true };
+}
 
 async function upsertProduct(row: SeedRow) {
   const cat = await prisma.category.findUnique({ where: { name: row.categoryName } });
@@ -66,32 +89,87 @@ async function upsertProduct(row: SeedRow) {
     compareAtPriceCents: row.compareAtPriceCents,
     promoBadge: row.promoBadge,
     stock: row.stock,
-    imageUrl: row.imageUrl,
     categoryId: cat?.id ?? null,
+    sku: row.sku?.trim() || null,
+    barcode: row.barcode?.trim() || null,
   };
 
-  const existing = await prisma.product.findFirst({ where: { name: row.name } });
+  const existing = row.sku
+    ? await prisma.product.findUnique({ where: { sku: row.sku } })
+    : await prisma.product.findFirst({ where: { name: row.name } });
+
+  const keepPhoto =
+    existing &&
+    !existing.imagePending &&
+    existing.imageUrl &&
+    isTechnicallyDirectProductImageUrl(existing.imageUrl) &&
+    !isForbiddenStockImageUrl(existing.imageUrl);
+
+  const nextPhoto = keepPhoto
+    ? { imageUrl: existing!.imageUrl!, imagePending: false as const }
+    : seedPhotoFields(row);
+
   if (!existing) {
-    await prisma.product.create({ data });
+    await prisma.product.create({ data: { ...data, ...nextPhoto } });
   } else {
     await prisma.product.update({
       where: { id: existing.id },
       data: {
+        name: data.name,
         description: data.description,
         priceCents: data.priceCents,
         compareAtPriceCents: data.compareAtPriceCents,
         promoBadge: data.promoBadge,
         categoryId: data.categoryId,
         stock: data.stock,
-        imageUrl: hasValidProductImage(existing.imageUrl) ? existing.imageUrl : data.imageUrl,
+        sku: data.sku,
+        barcode: data.barcode,
+        imageUrl: nextPhoto.imageUrl,
+        imagePending: nextPhoto.imagePending,
       },
     });
   }
 }
 
+const AAA_WHOLESALE_CATEGORIES = [
+  "Candy & Snacks",
+  "Beverages",
+  "Food Service",
+  "Smoke Accessories",
+  "Automotive",
+  "Fabric Care",
+  "Health & Personal Care",
+  "Household",
+  "Electronics",
+] as const;
+
+async function ensureAaaWholesaleCategories() {
+  const base = CATALOG_SECTION_ORDER.length;
+  for (let i = 0; i < AAA_WHOLESALE_CATEGORIES.length; i++) {
+    const name = AAA_WHOLESALE_CATEGORIES[i];
+    await prisma.category.upsert({
+      where: { name },
+      update: { sortOrder: base + i },
+      create: { name, sortOrder: base + i },
+    });
+  }
+}
+
+async function seedAaaWholesaleApril2026() {
+  const filePath = path.join(process.cwd(), "prisma", "data", "aaa-wholesale-april-2026.json");
+  const raw = readFileSync(filePath, "utf8");
+  const rows = JSON.parse(raw) as Omit<SeedRow, "stock">[];
+  for (const row of rows) {
+    await upsertProduct({ ...row, stock: UNLIMITED_STOCK });
+  }
+  console.log(`Seed: AAA Wholesale Abril 2026 — ${rows.length} productos (SKU + código de barras).`);
+}
+
 async function main() {
   await migrateDisplayStrings();
   await ensureCategories();
+  await ensureAaaWholesaleCategories();
+  await seedAaaWholesaleApril2026();
 
   const hash = await bcrypt.hash("demo1234", 10);
 
@@ -126,7 +204,6 @@ async function main() {
       promoBadge: "Rollback",
       categoryName: "Tech & gadgets",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/39/600/450",
     },
     {
       name: "Mechanical keyboard",
@@ -136,7 +213,6 @@ async function main() {
       promoBadge: "Reduced price",
       categoryName: "Spruce up your space",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/60/600/450",
     },
     {
       name: "Ergonomic mouse",
@@ -146,7 +222,6 @@ async function main() {
       promoBadge: "Clearance",
       categoryName: "Spruce up your space",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/96/600/450",
     },
   ];
 
@@ -163,7 +238,6 @@ async function main() {
       promoBadge: null,
       categoryName: "Beauty & fragrances",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/64/600/450",
     },
     {
       name: "Coach Signature Eau de Parfum 3.3 fl oz",
@@ -173,7 +247,6 @@ async function main() {
       promoBadge: "Rollback",
       categoryName: "Beauty & fragrances",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/65/600/450",
     },
     {
       name: "MUK LUKS — Compression socks (2-pack)",
@@ -183,7 +256,6 @@ async function main() {
       promoBadge: null,
       categoryName: "Fashion & accessories",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/338/600/450",
     },
     {
       name: "Ferrero Rocher — Box of 24",
@@ -193,7 +265,6 @@ async function main() {
       promoBadge: "Reduced price",
       categoryName: "100+ gifts for Mom",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/431/600/450",
     },
     {
       name: "Beautiful — 4 Qt slow cooker",
@@ -203,7 +274,6 @@ async function main() {
       promoBadge: "Rollback",
       categoryName: "Popular home picks",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/312/600/450",
     },
     {
       name: "Bose Ultra Open — Bluetooth headphones",
@@ -213,7 +283,6 @@ async function main() {
       promoBadge: null,
       categoryName: "Tech & gadgets",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/181/600/450",
     },
     {
       name: "LEGO 40821 — Love Bears (287 pcs)",
@@ -223,7 +292,6 @@ async function main() {
       promoBadge: "Clearance",
       categoryName: "Must-have gift sets",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/193/600/450",
     },
     {
       name: "Cate & Chloe — White gold 18k earrings",
@@ -233,7 +301,6 @@ async function main() {
       promoBadge: null,
       categoryName: "Jewelry & watches",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/102/600/450",
     },
     {
       name: "Lumbar pillow «It's Mom-Plicated»",
@@ -243,7 +310,6 @@ async function main() {
       promoBadge: null,
       categoryName: "$15 & under",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/106/600/450",
     },
     {
       name: "Lavender spa set — 8 pieces",
@@ -253,7 +319,6 @@ async function main() {
       promoBadge: "Reduced price",
       categoryName: "Mother's Day gifts",
       stock: 25,
-      imageUrl: "https://picsum.photos/id/152/600/450",
     },
   ];
 

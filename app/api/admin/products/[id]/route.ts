@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
-import { hasValidProductImage } from "@/lib/product-image";
+import {
+  isTechnicallyDirectProductImageUrl,
+  resolveProductImageForAdminPatch,
+  type AdminPatchImageResolution,
+} from "@/lib/product-image";
 import { MAX_PROMO_BADGE_LEN } from "@/lib/product-field-limits";
 import { UNLIMITED_STOCK } from "@/lib/product-stock";
 
@@ -22,6 +26,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
   let body: Partial<{
     name: string;
     description: string;
+    sku: string | null;
+    barcode: string | null;
     priceCents: number;
     compareAtPriceCents: number | null;
     promoBadge: string | null;
@@ -29,7 +35,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
     stock?: number;
     inStock?: boolean;
     unlimitedStock?: boolean;
-    imageUrl: string | null;
+    imageUrl?: string | null;
+    imageVerified?: boolean;
   }>;
   try {
     body = await req.json();
@@ -40,6 +47,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const data: Record<string, unknown> = {};
   if (body.name !== undefined) data.name = String(body.name).trim();
   if (body.description !== undefined) data.description = String(body.description).trim();
+  if (body.sku !== undefined) {
+    data.sku = body.sku === null || body.sku === "" ? null : String(body.sku).trim();
+  }
+  if (body.barcode !== undefined) {
+    data.barcode = body.barcode === null || body.barcode === "" ? null : String(body.barcode).trim();
+  }
   if (body.priceCents !== undefined) data.priceCents = Math.max(0, Math.floor(Number(body.priceCents) || 0));
   if (body.unlimitedStock === true) {
     data.stock = UNLIMITED_STOCK;
@@ -53,7 +66,6 @@ export async function PATCH(req: Request, ctx: Ctx) {
       data.stock = Boolean(body.inStock) ? Math.max(1, existing.stock) : 0;
     }
   }
-  if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl ? String(body.imageUrl).trim() : null;
   if (body.compareAtPriceCents !== undefined) {
     data.compareAtPriceCents =
       body.compareAtPriceCents === null
@@ -92,14 +104,23 @@ export async function PATCH(req: Request, ctx: Ctx) {
     );
   }
 
-  const mergedImage =
-    body.imageUrl !== undefined ? (data.imageUrl as string | null) : existing.imageUrl;
-  if (!hasValidProductImage(mergedImage)) {
+  const imgRes: AdminPatchImageResolution = resolveProductImageForAdminPatch(existing, {
+    imageUrl: body.imageUrl,
+    imageVerified: body.imageVerified,
+  });
+  if (imgRes.ok === false) {
+    return NextResponse.json({ error: imgRes.error }, { status: 400 });
+  }
+  if (imgRes.ok !== "unchanged") {
+    data.imageUrl = imgRes.imageUrl;
+    data.imagePending = imgRes.imagePending;
+  }
+
+  const mergedPending = imgRes.ok === "unchanged" ? existing.imagePending : imgRes.imagePending;
+  const mergedUrl = imgRes.ok === "unchanged" ? existing.imageUrl : imgRes.imageUrl;
+  if (!mergedPending && (!mergedUrl || !isTechnicallyDirectProductImageUrl(mergedUrl))) {
     return NextResponse.json(
-      {
-        error:
-          "Each product needs a photo to appear in the catalog. Add an image or URL.",
-      },
+      { error: "Sin foto verificada el producto debe quedar con imagen pendiente." },
       { status: 400 },
     );
   }
