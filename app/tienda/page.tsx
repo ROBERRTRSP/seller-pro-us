@@ -18,6 +18,8 @@ type Product = {
   category: string | null;
   categorySortOrder?: number;
   stock: number;
+  sku: string | null;
+  barcode: string | null;
   imagePending: boolean;
   imageUrl: string | null;
 };
@@ -155,7 +157,8 @@ export default function TiendaPage() {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return products;
     return products.filter((p) => {
-      const haystack = `${p.name} ${p.description} ${p.category ?? ""}`.toLowerCase();
+      const haystack =
+        `${p.name} ${p.description} ${p.category ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""}`.toLowerCase();
       return haystack.includes(q);
     });
   }, [products, searchQuery]);

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
 import { productCatalogImageVisible } from "@/lib/product-image";
 
+/** Catálogo completo: todos los productos en BD, con o sin foto publicada (`imagePending`). */
 export async function GET() {
   const gate = await requireRole(Role.CLIENT);
   if ("error" in gate && gate.error) return gate.error;
@@ -18,6 +19,8 @@ export async function GET() {
       compareAtPriceCents: true,
       promoBadge: true,
       stock: true,
+      sku: true,
+      barcode: true,
       imageUrl: true,
       imagePending: true,
       category: { select: { name: true, sortOrder: true } },
@@ -32,6 +35,8 @@ export async function GET() {
     compareAtPriceCents: p.compareAtPriceCents,
     promoBadge: p.promoBadge,
     stock: p.stock,
+    sku: p.sku,
+    barcode: p.barcode,
     imagePending: p.imagePending,
     imageUrl: productCatalogImageVisible(p.imagePending, p.imageUrl) ? p.imageUrl : null,
     category: p.category?.name ?? null,
