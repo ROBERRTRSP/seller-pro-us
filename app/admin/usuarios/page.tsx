@@ -11,6 +11,9 @@ type UserRow = {
   email: string;
   name: string;
   role: "CLIENT" | "ADMIN";
+  phone: string | null;
+  businessLicense: string | null;
+  tobaccoLicense: string | null;
   createdAt: string;
   _count: { orders: number };
 };
@@ -20,6 +23,9 @@ type UserPatch = Partial<{
   role: "CLIENT" | "ADMIN";
   email: string;
   password: string;
+  phone: string | null;
+  businessLicense: string | null;
+  tobaccoLicense: string | null;
 }>;
 
 export default function AdminUsuariosPage() {
@@ -34,6 +40,9 @@ export default function AdminUsuariosPage() {
     password: "",
     name: "",
     role: "CLIENT" as "CLIENT" | "ADMIN",
+    phone: "",
+    businessLicense: "",
+    tobaccoLicense: "",
   });
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
@@ -72,7 +81,15 @@ export default function AdminUsuariosPage() {
         setError(data.error ?? "No se pudo crear el usuario");
         return;
       }
-      setForm({ email: "", password: "", name: "", role: "CLIENT" });
+      setForm({
+        email: "",
+        password: "",
+        name: "",
+        role: "CLIENT",
+        phone: "",
+        businessLicense: "",
+        tobaccoLicense: "",
+      });
       await load();
     } finally {
       setCreating(false);
@@ -138,6 +155,9 @@ export default function AdminUsuariosPage() {
         <strong>abre la tienda como cliente</strong>. Toca una fila (fuera de campos y botones) para ver{" "}
         <strong>código QR e informe</strong> de esa cuenta: el cliente escanea el QR e inicia sesión en la tienda.
       </p>
+      <p className="mt-1 text-xs text-[var(--muted)]">
+        Para crear cuenta de <strong>Cliente</strong>: teléfono, Business License y Tobacco License son obligatorios.
+      </p>
 
       <form
         onSubmit={createUser}
@@ -183,6 +203,29 @@ export default function AdminUsuariosPage() {
             <option value="CLIENT">Cliente</option>
             <option value="ADMIN">Administrador</option>
           </select>
+          <input
+            required={form.role === "CLIENT"}
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="Teléfono (obligatorio para cliente)"
+            value={form.phone}
+            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+          />
+          <input
+            required={form.role === "CLIENT"}
+            placeholder="Business License (obligatorio para cliente)"
+            value={form.businessLicense}
+            onChange={(e) => setForm((f) => ({ ...f, businessLicense: e.target.value }))}
+            className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+          />
+          <input
+            required={form.role === "CLIENT"}
+            placeholder="Tobacco License (obligatorio para cliente)"
+            value={form.tobaccoLicense}
+            onChange={(e) => setForm((f) => ({ ...f, tobaccoLicense: e.target.value }))}
+            className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+          />
         </div>
         {error ? <p className="text-sm text-red-400">{error}</p> : null}
         <button

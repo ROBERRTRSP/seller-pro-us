@@ -31,13 +31,16 @@ model SiteSettings {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(CLIENT)
-  createdAt DateTime @default(now())
-  orders    Order[]
+  id              String   @id @default(cuid())
+  email           String   @unique
+  password        String
+  name            String
+  role            Role     @default(CLIENT)
+  phone           String?
+  businessLicense String?
+  tobaccoLicense  String?
+  createdAt       DateTime @default(now())
+  orders          Order[]
 }
 
 model Category {

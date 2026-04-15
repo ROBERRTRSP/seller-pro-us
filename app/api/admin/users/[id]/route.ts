@@ -17,7 +17,15 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
 
   const { id } = await ctx.params;
-  let body: { name?: string; role?: string; email?: string; password?: string };
+  let body: {
+    name?: string;
+    role?: string;
+    email?: string;
+    password?: string;
+    phone?: string;
+    businessLicense?: string;
+    tobaccoLicense?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -29,7 +37,15 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const data: { name?: string; role?: Role; email?: string; password?: string } = {};
+  const data: {
+    name?: string;
+    role?: Role;
+    email?: string;
+    password?: string;
+    phone?: string | null;
+    businessLicense?: string | null;
+    tobaccoLicense?: string | null;
+  } = {};
   if (body.name !== undefined) {
     const name = String(body.name).trim();
     if (!name) return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
@@ -64,6 +80,16 @@ export async function PATCH(req: Request, ctx: Ctx) {
     }
   }
 
+  if (body.phone !== undefined) {
+    data.phone = String(body.phone).trim() || null;
+  }
+  if (body.businessLicense !== undefined) {
+    data.businessLicense = String(body.businessLicense).trim() || null;
+  }
+  if (body.tobaccoLicense !== undefined) {
+    data.tobaccoLicense = String(body.tobaccoLicense).trim() || null;
+  }
+
   if (body.role !== undefined) {
     const r = String(body.role).toUpperCase();
     const newRole = r === "ADMIN" ? Role.ADMIN : Role.CLIENT;
@@ -88,6 +114,26 @@ export async function PATCH(req: Request, ctx: Ctx) {
     data.role = newRole;
   }
 
+  const resultingRole = data.role ?? existing.role;
+  const resultingPhone = data.phone ?? existing.phone;
+  const resultingBusinessLicense = data.businessLicense ?? existing.businessLicense;
+  const resultingTobaccoLicense = data.tobaccoLicense ?? existing.tobaccoLicense;
+  const shouldValidateClientDocs =
+    (body.role !== undefined && resultingRole === Role.CLIENT) ||
+    body.phone !== undefined ||
+    body.businessLicense !== undefined ||
+    body.tobaccoLicense !== undefined;
+  if (
+    shouldValidateClientDocs &&
+    resultingRole === Role.CLIENT &&
+    (!resultingPhone || !resultingBusinessLicense || !resultingTobaccoLicense)
+  ) {
+    return NextResponse.json(
+      { error: "Client accounts require phone, Business License, and Tobacco License." },
+      { status: 400 },
+    );
+  }
+
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "No changes" }, { status: 400 });
   }
@@ -100,6 +146,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
       email: true,
       name: true,
       role: true,
+      phone: true,
+      businessLicense: true,
+      tobaccoLicense: true,
       createdAt: true,
       _count: { select: { orders: true } },
     },
