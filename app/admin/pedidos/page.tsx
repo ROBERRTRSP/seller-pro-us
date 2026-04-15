@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ADMIN_FETCH_TIMEOUT, adminFetchJson, type AdminFetchJsonResult } from "@/lib/admin-client-fetch";
+import { mergeOrderLines } from "@/lib/order-lines";
+import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
 import { formatCents } from "@/lib/money";
 import { APP_LOCALE, formatOrderStatus } from "@/lib/us-locale";
 
@@ -27,6 +29,10 @@ export default function AdminPedidosPage() {
   const [loadError, setLoadError] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>(FILTER_ALL);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  /** Draft líneas por pedido: solo pedidos pendientes; se sincroniza al cargar lista. */
+  const [itemDrafts, setItemDrafts] = useState<Record<string, { productId: string; quantity: number }[]>>({});
+  const [lineErrors, setLineErrors] = useState<Record<string, string>>({});
+  const [savingLinesId, setSavingLinesId] = useState<string | null>(null);
   const loadGen = useRef(0);
 
   function applyOrdersFetch(res: AdminFetchJsonResult<Order[]>) {
@@ -52,6 +58,12 @@ export default function AdminPedidosPage() {
       n[o.id] = o.adminNote ?? "";
     }
     setNotes(n);
+    const drafts: Record<string, { productId: string; quantity: number }[]> = {};
+    for (const o of d) {
+      drafts[o.id] = o.items.map((it) => ({ productId: it.product.id, quantity: it.quantity }));
+    }
+    setItemDrafts(drafts);
+    setLineErrors({});
   }
 
   async function load() {
@@ -119,6 +131,38 @@ export default function AdminPedidosPage() {
     await load();
   }
 
+  async function saveOrderLines(orderId: string) {
+    const raw = itemDrafts[orderId] ?? [];
+    const merged = mergeOrderLines(raw);
+    if (merged.length === 0) {
+      setLineErrors((prev) => ({
+        ...prev,
+        [orderId]: "Debe quedar al menos un producto con cantidad mayor que 0.",
+      }));
+      return;
+    }
+    setLineErrors((prev) => ({ ...prev, [orderId]: "" }));
+    setSavingLinesId(orderId);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: merged }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLineErrors((prev) => ({
+          ...prev,
+          [orderId]: typeof data.error === "string" ? data.error : "No se pudieron guardar las líneas",
+        }));
+        return;
+      }
+      await load();
+    } finally {
+      setSavingLinesId(null);
+    }
+  }
+
   async function acceptOrder(id: string) {
     const res = await fetch(`/api/admin/orders/${id}`, {
       method: "PATCH",
@@ -141,7 +185,9 @@ export default function AdminPedidosPage() {
     <div>
       <h1 className="text-2xl font-semibold">Pedidos</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        Filtra por estado, actualiza el flujo y añade notas internas (solo administración).
+        Filtra por estado, actualiza el flujo y añade notas internas (solo administración). En pedidos{" "}
+        <strong>pendientes</strong> puedes corregir cantidades o quitar líneas si no tienes todo el producto; el total
+        se recalcula con los precios actuales del catálogo.
       </p>
       {loadError ? (
         <p className="mt-4 rounded-lg border border-red-500/30 bg-red-950/30 px-4 py-3 text-sm text-red-200">
@@ -265,6 +311,68 @@ export default function AdminPedidosPage() {
                 </li>
               ))}
             </ul>
+            {o.status === "PENDIENTE" ? (
+              <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--bg)]/50 p-4">
+                <p className="text-xs font-medium text-[var(--muted)]">Editar líneas del pedido</p>
+                <p className="mt-1 text-[11px] text-[var(--muted)]">
+                  Cambia cantidades o quita productos que no puedas surtir. No combines con cancelar ni con aceptar en
+                  el mismo guardado.
+                </p>
+                <ul className="mt-3 space-y-2">
+                  {(itemDrafts[o.id] ?? o.items.map((it) => ({ productId: it.product.id, quantity: it.quantity }))).map(
+                    (line, idx) => {
+                      const name =
+                        o.items.find((it) => it.product.id === line.productId)?.product.name ?? line.productId;
+                      return (
+                        <li key={`${line.productId}-${idx}`} className="flex flex-wrap items-center gap-2 text-sm">
+                          <span className="min-w-0 flex-1 truncate text-[var(--text)]">{name}</span>
+                          <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
+                            Cant.
+                            <input
+                              type="number"
+                              min={1}
+                              max={MAX_ORDER_LINE_QUANTITY}
+                              value={line.quantity}
+                              onChange={(e) => {
+                                const q = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                                setItemDrafts((prev) => {
+                                  const list = [...(prev[o.id] ?? [])];
+                                  const j = list.findIndex((l) => l.productId === line.productId);
+                                  if (j >= 0) list[j] = { ...list[j], quantity: q };
+                                  return { ...prev, [o.id]: list };
+                                });
+                              }}
+                              className="w-16 rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-[var(--text)]"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setItemDrafts((prev) => ({
+                                ...prev,
+                                [o.id]: (prev[o.id] ?? []).filter((l) => l.productId !== line.productId),
+                              }))
+                            }
+                            className="shrink-0 text-xs text-red-400 hover:underline"
+                          >
+                            Quitar
+                          </button>
+                        </li>
+                      );
+                    },
+                  )}
+                </ul>
+                {lineErrors[o.id] ? <p className="mt-2 text-sm text-red-400">{lineErrors[o.id]}</p> : null}
+                <button
+                  type="button"
+                  disabled={savingLinesId === o.id}
+                  onClick={() => void saveOrderLines(o.id)}
+                  className="mt-3 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+                >
+                  {savingLinesId === o.id ? "Guardando líneas…" : "Guardar cambios en líneas"}
+                </button>
+              </div>
+            ) : null}
             <div className="mt-4 border-t border-[var(--border)] pt-4">
               <label className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
                 Nota interna

@@ -2,29 +2,12 @@ import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
-import { hasValidProductImage } from "@/lib/product-image";
 import { clientCanEditOrCancelOrder } from "@/lib/order-client-actions";
-import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
 import { mergeOrderLines } from "@/lib/order-lines";
-import {
-  incrementProductStock,
-  InsufficientStockError,
-  tryDecrementProductStock,
-} from "@/lib/order-stock";
+import { parseJsonOrderLines, replaceOrderItemsForOrder } from "@/lib/replace-order-items";
+import { incrementProductStock, InsufficientStockError } from "@/lib/order-stock";
 
 type Ctx = { params: Promise<{ id: string }> };
-
-type Line = { productId: string; quantity: number };
-
-function parseLines(items: unknown): Line[] {
-  const arr = Array.isArray(items) ? items : [];
-  return arr
-    .map((i: { productId?: string; quantity?: number }) => ({
-      productId: String(i.productId ?? ""),
-      quantity: Math.max(0, Math.floor(Number(i.quantity) || 0)),
-    }))
-    .filter((i) => i.productId && i.quantity > 0);
-}
 
 export async function GET(_req: Request, ctx: Ctx) {
   const gate = await requireRole(Role.CLIENT);
@@ -110,7 +93,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     }
   }
 
-  const cleaned = mergeOrderLines(parseLines(body.items));
+  const cleaned = mergeOrderLines(parseJsonOrderLines(body.items));
   if (cleaned.length === 0) {
     return NextResponse.json(
       { error: "El pedido debe incluir al menos un producto con cantidad mayor que 0." },
@@ -125,51 +108,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
         throw new Error("LOCK");
       }
 
-      for (const it of o.items) {
-        await incrementProductStock(tx, it.productId, it.quantity);
-      }
-
-      await tx.orderItem.deleteMany({ where: { orderId: id } });
-
-      const ids = [...new Set(cleaned.map((c) => c.productId))];
-      const products = await tx.product.findMany({ where: { id: { in: ids } } });
-      const byId = new Map(products.map((p) => [p.id, p]));
-
-      let totalCents = 0;
-      const lines: { productId: string; quantity: number; priceCents: number }[] = [];
-
-      for (const line of cleaned) {
-        const p = byId.get(line.productId);
-        if (!p) {
-          throw new Error(`Product not found: ${line.productId}`);
-        }
-        if (line.quantity > MAX_ORDER_LINE_QUANTITY) {
-          throw new Error(`Maximum ${MAX_ORDER_LINE_QUANTITY} units per product (“${p.name}”).`);
-        }
-        if (!hasValidProductImage(p.imageUrl)) {
-          throw new Error(`“${p.name}” is not available without a photo.`);
-        }
-        const ok = await tryDecrementProductStock(tx, line.productId, line.quantity);
-        if (!ok) {
-          throw new InsufficientStockError(p.name);
-        }
-        totalCents += p.priceCents * line.quantity;
-        lines.push({ productId: p.id, quantity: line.quantity, priceCents: p.priceCents });
-      }
-
-      await tx.order.update({
-        where: { id },
-        data: {
-          totalCents,
-          items: {
-            create: lines.map((l) => ({
-              productId: l.productId,
-              quantity: l.quantity,
-              priceCents: l.priceCents,
-            })),
-          },
-        },
-      });
+      await replaceOrderItemsForOrder(tx, id, cleaned);
 
       return tx.order.findFirst({
         where: { id, userId: session.sub },
