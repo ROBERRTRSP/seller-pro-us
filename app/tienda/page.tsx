@@ -62,6 +62,7 @@ export default function TiendaPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [cartLines, setCartLines] = useState<CartLine[]>([]);
   const fetchSeq = useRef(0);
 
@@ -151,9 +152,18 @@ export default function TiendaPage() {
     };
   }, [loading, loadProducts]);
 
+  const visibleProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => {
+      const haystack = `${p.name} ${p.description} ${p.category ?? ""}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [products, searchQuery]);
+
   const byCategory = useMemo(() => {
     const m = new Map<string, Product[]>();
-    for (const p of products) {
+    for (const p of visibleProducts) {
       const key = (p.category ?? "").trim() || "Other";
       const list = m.get(key) ?? [];
       list.push(p);
@@ -163,17 +173,17 @@ export default function TiendaPage() {
       list.sort((a, b) => a.name.localeCompare(b.name));
     }
     return m;
-  }, [products]);
+  }, [visibleProducts]);
 
   const sectionKeys = useMemo(() => {
     const hint = new Map<string, number>();
-    for (const p of products) {
+    for (const p of visibleProducts) {
       const k = (p.category ?? "").trim() || "Other";
       const o = p.categorySortOrder ?? 999999;
       hint.set(k, Math.min(hint.get(k) ?? o, o));
     }
     return sortCategorySectionKeys([...byCategory.keys()], hint);
-  }, [byCategory, products]);
+  }, [byCategory, visibleProducts]);
 
   function qtyInCart(productId: string) {
     return cartLines.find((l) => l.productId === productId)?.quantity ?? 0;
@@ -198,7 +208,7 @@ export default function TiendaPage() {
   }
 
   const flashProducts = useMemo(() => {
-    return products
+    return visibleProducts
       .filter((p) => {
         const deal =
           p.compareAtPriceCents != null && p.compareAtPriceCents > p.priceCents;
@@ -210,31 +220,7 @@ export default function TiendaPage() {
         return deal || tag;
       })
       .slice(0, 12);
-  }, [products]);
-
-  const quickDepartments = useMemo(() => {
-    const hrefFor = (re: RegExp) => {
-      const i = sectionKeys.findIndex((s) => re.test(s));
-      return i >= 0 ? `#seccion-${i}` : "#todo-catalogo";
-    };
-    return [
-      { label: "Despensa", href: hrefFor(/grocery|despensa|comida|aliment/i) },
-      { label: "Hogar", href: hrefFor(/home|hogar|space|spruce|picks|popular|interior/i) },
-      { label: "Patio y jardín", href: hrefFor(/patio|garden|jardín|jardin|exterior/i) },
-      { label: "Moda", href: hrefFor(/fashion|moda|accessor|joya|jewelry|watch/i) },
-      { label: "Tecnología", href: hrefFor(/tech|gadget|electr/i) },
-      { label: "Bebé", href: hrefFor(/baby|bebé|bebe|niño/i) },
-      { label: "Juguetes", href: hrefFor(/toy|juguete|gift set|regalo/i) },
-      { label: "Salud", href: hrefFor(/health|salud|wellness|bienestar/i) },
-      {
-        label: "Cuidado personal",
-        href: hrefFor(/personal|care|cuidado|beauty|belleza|fragrance/i),
-      },
-      { label: "Belleza", href: hrefFor(/beauty|belleza|fragrance|cosm/i) },
-      { label: "Auto", href: hrefFor(/auto|tire|llanta|motor/i) },
-      { label: "Mejoras del hogar", href: hrefFor(/improvement|mejora|herramient|diy/i) },
-    ];
-  }, [sectionKeys]);
+  }, [visibleProducts]);
 
   if (loading) {
     return (
@@ -306,24 +292,20 @@ export default function TiendaPage() {
       {products.length > 0 ? (
         <nav
           className="no-print sticky top-24 z-10 -mx-3 mt-4 border-y border-neutral-200 bg-white/95 py-2 shadow-sm backdrop-blur-sm sm:-mx-0 sm:top-28 sm:mt-6 sm:rounded-lg sm:border"
-          aria-label="Departamentos"
+          aria-label="Buscador de productos"
         >
-          <div className="flex gap-2 overflow-x-auto px-2 pb-1 pt-1 [scrollbar-width:thin] sm:px-3">
-            {quickDepartments.map((d) => (
-              <a
-                key={d.label}
-                href={d.href}
-                className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-800 touch-manipulation hover:border-[#0071dc] hover:bg-blue-50 hover:text-[#0071dc]"
-              >
-                {d.label}
-              </a>
-            ))}
-            <a
-              href="#todo-catalogo"
-              className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-[#0071dc] px-3 py-2 text-xs font-bold text-white touch-manipulation hover:bg-[#005bb5]"
-            >
-              Ver todo
-            </a>
+          <div className="px-2 pb-1 pt-1 sm:px-3">
+            <label htmlFor="search-products" className="sr-only">
+              Buscar productos
+            </label>
+            <input
+              id="search-products"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar productos..."
+              className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-[#0071dc]/20 placeholder:text-neutral-400 focus:border-[#0071dc] focus:ring-2"
+            />
           </div>
         </nav>
       ) : null}
@@ -384,6 +366,12 @@ export default function TiendaPage() {
           );
         })}
       </div>
+
+      {products.length > 0 && visibleProducts.length === 0 ? (
+        <p className="mt-10 rounded-xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-600 shadow-sm">
+          No se encontraron productos con esa búsqueda.
+        </p>
+      ) : null}
 
       {products.length === 0 ? (
         <p className="mt-10 rounded-xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-600 shadow-sm">

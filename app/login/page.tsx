@@ -105,11 +105,6 @@ export default function LoginPage() {
             {loading ? "Entrando…" : "Entrar"}
           </button>
         </form>
-        <p className="mt-6 text-xs text-[var(--muted)]">
-          Demo: <span className="text-[var(--text)]">cliente@tienda.local</span> o{" "}
-          <span className="text-[var(--text)]">admin@tienda.local</span> — contraseña{" "}
-          <span className="text-[var(--text)]">demo1234</span>
-        </p>
       </div>
     </div>
   );
