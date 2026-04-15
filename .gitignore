@@ -1,0 +1,33 @@
+/node_modules
+/.next/
+/out/
+.turbo
+*.tsbuildinfo
+.vercel
+
+.env
+.env.*
+!.env.example
+.env*.local
+
+*.db
+*.db-journal
+# Descomenta la siguiente línea si quieres versionar una BD demo para despliegues simples:
+# !prisma/dev.db
+
+.DS_Store
+Thumbs.db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+coverage/
+
+# IDE (opcional)
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Fotos de productos subidas (se conserva la carpeta con .gitkeep)
+/public/uploads/*
+!/public/uploads/.gitkeep

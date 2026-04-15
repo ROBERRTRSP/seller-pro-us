@@ -1,0 +1,16 @@
+# Postgres local (mismo motor que Neon). Uso: docker compose up -d
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: theseller
+    ports:
+      - "55432:5432"
+    volumes:
+      - theseller_pgdata:/var/lib/postgresql/data
+
+volumes:
+  theseller_pgdata:

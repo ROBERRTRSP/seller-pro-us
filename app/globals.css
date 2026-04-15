@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0f1419;
+  --surface: #1a2332;
+  --border: #2d3a4d;
+  --text: #e8eef5;
+  --muted: #8b9cb3;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+    size: auto;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-sheet {
+    max-width: none !important;
+    padding: 0 !important;
+    color: #000 !important;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #ccc !important;
+    padding: 8px !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  .print-table thead th {
+    border-bottom: 1px solid #000 !important;
+  }
+
+  /* Menos márgenes del layout al imprimir pedidos */
+  .min-h-screen > main {
+    padding: 0.75rem !important;
+    max-width: none !important;
+  }
+}
