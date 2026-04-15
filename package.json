@@ -15,6 +15,7 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:clear": "npx tsx prisma/clear-store.ts",
+    "db:import:april-special": "npx tsx prisma/import-april-special.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
