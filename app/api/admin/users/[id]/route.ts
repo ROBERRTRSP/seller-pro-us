@@ -25,6 +25,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     phone?: string;
     businessLicense?: string;
     tobaccoLicense?: string;
+    address?: string;
   };
   try {
     body = await req.json();
@@ -45,6 +46,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     phone?: string | null;
     businessLicense?: string | null;
     tobaccoLicense?: string | null;
+    address?: string | null;
   } = {};
   if (body.name !== undefined) {
     const name = String(body.name).trim();
@@ -89,6 +91,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (body.tobaccoLicense !== undefined) {
     data.tobaccoLicense = String(body.tobaccoLicense).trim() || null;
   }
+  if (body.address !== undefined) {
+    data.address = String(body.address).trim() || null;
+  }
 
   if (body.role !== undefined) {
     const r = String(body.role).toUpperCase();
@@ -118,18 +123,23 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const resultingPhone = data.phone ?? existing.phone;
   const resultingBusinessLicense = data.businessLicense ?? existing.businessLicense;
   const resultingTobaccoLicense = data.tobaccoLicense ?? existing.tobaccoLicense;
+  const resultingAddress = data.address ?? existing.address;
   const shouldValidateClientDocs =
     (body.role !== undefined && resultingRole === Role.CLIENT) ||
     body.phone !== undefined ||
+    body.address !== undefined ||
     body.businessLicense !== undefined ||
     body.tobaccoLicense !== undefined;
   if (
     shouldValidateClientDocs &&
     resultingRole === Role.CLIENT &&
-    (!resultingPhone || !resultingBusinessLicense || !resultingTobaccoLicense)
+    (!resultingPhone || !resultingAddress || !resultingBusinessLicense || !resultingTobaccoLicense)
   ) {
     return NextResponse.json(
-      { error: "Client accounts require phone, Business License, and Tobacco License." },
+      {
+        error:
+          "Client accounts require phone, address, Business License, and Tobacco License.",
+      },
       { status: 400 },
     );
   }
@@ -147,6 +157,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
       name: true,
       role: true,
       phone: true,
+      address: true,
       businessLicense: true,
       tobaccoLicense: true,
       createdAt: true,

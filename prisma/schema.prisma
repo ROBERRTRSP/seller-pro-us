@@ -37,6 +37,8 @@ model User {
   name            String
   role            Role     @default(CLIENT)
   phone           String?
+  /** Dirección postal / de entrega del cliente (obligatoria para rol CLIENT). */
+  address         String?
   businessLicense String?
   tobaccoLicense  String?
   createdAt       DateTime @default(now())

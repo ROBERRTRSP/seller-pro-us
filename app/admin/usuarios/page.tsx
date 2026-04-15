@@ -12,6 +12,7 @@ type UserRow = {
   name: string;
   role: "CLIENT" | "ADMIN";
   phone: string | null;
+  address: string | null;
   businessLicense: string | null;
   tobaccoLicense: string | null;
   createdAt: string;
@@ -24,6 +25,7 @@ type UserPatch = Partial<{
   email: string;
   password: string;
   phone: string | null;
+  address: string | null;
   businessLicense: string | null;
   tobaccoLicense: string | null;
 }>;
@@ -41,6 +43,7 @@ export default function AdminUsuariosPage() {
     name: "",
     role: "CLIENT" as "CLIENT" | "ADMIN",
     phone: "",
+    address: "",
     businessLicense: "",
     tobaccoLicense: "",
   });
@@ -87,6 +90,7 @@ export default function AdminUsuariosPage() {
         name: "",
         role: "CLIENT",
         phone: "",
+        address: "",
         businessLicense: "",
         tobaccoLicense: "",
       });
@@ -152,11 +156,13 @@ export default function AdminUsuariosPage() {
       <h1 className="text-2xl font-semibold">Usuarios</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
         Crea cuentas, edita <strong>nombre, correo y contraseña</strong>, cambia el rol o{" "}
-        <strong>abre la tienda como cliente</strong>. Toca una fila (fuera de campos y botones) para ver{" "}
-        <strong>código QR e informe</strong> de esa cuenta: el cliente escanea el QR e inicia sesión en la tienda.
+        <strong>abre la tienda como cliente</strong>. Los <strong>clientes ya creados</strong> pueden actualizar
+        teléfono, dirección y licencias en la tabla (al salir del campo se guarda). Toca una fila (fuera de campos y
+        botones) para ver <strong>código QR e informe</strong>.
       </p>
       <p className="mt-1 text-xs text-[var(--muted)]">
-        Para crear cuenta de <strong>Cliente</strong>: teléfono, Business License y Tobacco License son obligatorios.
+        Para crear cuenta de <strong>Cliente</strong>: teléfono, dirección, Business License y Tobacco License son
+        obligatorios.
       </p>
 
       <form
@@ -212,6 +218,18 @@ export default function AdminUsuariosPage() {
             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
             className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
           />
+          <label className="sm:col-span-2">
+            <span className="sr-only">Dirección del cliente</span>
+            <textarea
+              required={form.role === "CLIENT"}
+              autoComplete="street-address"
+              placeholder="Dirección del cliente (calle, ciudad, estado, ZIP) — obligatoria para cliente"
+              value={form.address}
+              onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+              rows={3}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+            />
+          </label>
           <input
             required={form.role === "CLIENT"}
             placeholder="Business License (obligatorio para cliente)"
@@ -238,13 +256,17 @@ export default function AdminUsuariosPage() {
       </form>
 
       <div className="mt-10 overflow-x-auto rounded-xl border border-[var(--border)]">
-        <table className="w-full min-w-[960px] text-left text-sm">
+        <table className="w-full min-w-[1280px] text-left text-sm">
           <thead className="border-b border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]">
             <tr>
               <th className="px-4 py-3 font-medium">Nombre</th>
               <th className="px-4 py-3 font-medium">Correo</th>
               <th className="min-w-[200px] px-4 py-3 font-medium">Nueva contraseña</th>
               <th className="px-4 py-3 font-medium">Rol</th>
+              <th className="min-w-[120px] px-4 py-3 font-medium">Teléfono</th>
+              <th className="min-w-[180px] px-4 py-3 font-medium">Dirección</th>
+              <th className="min-w-[120px] px-4 py-3 font-medium">Business lic.</th>
+              <th className="min-w-[120px] px-4 py-3 font-medium">Tobacco lic.</th>
               <th className="px-4 py-3 font-medium">Pedidos</th>
               <th className="px-4 py-3 font-medium">Alta</th>
               <th className="px-4 py-3 font-medium">Tienda</th>
@@ -317,6 +339,80 @@ export default function AdminUsuariosPage() {
                     <option value="CLIENT">Cliente</option>
                     <option value="ADMIN">Administrador</option>
                   </select>
+                </td>
+                <td className="px-4 py-3 align-top">
+                  {u.role === "CLIENT" ? (
+                    <input
+                      type="text"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      defaultValue={u.phone ?? ""}
+                      key={`phone-${u.id}-${u.phone ?? ""}`}
+                      placeholder="Teléfono"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        const prev = (u.phone ?? "").trim();
+                        if (v !== prev) void updateUser(u.id, { phone: v || null });
+                      }}
+                      className="w-full max-w-[140px] rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs"
+                    />
+                  ) : (
+                    <span className="text-xs text-[var(--muted)]">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 align-top">
+                  {u.role === "CLIENT" ? (
+                    <textarea
+                      defaultValue={u.address ?? ""}
+                      key={`addr-${u.id}-${u.address ?? ""}`}
+                      placeholder="Dirección"
+                      rows={2}
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        const prev = (u.address ?? "").trim();
+                        if (v !== prev) void updateUser(u.id, { address: v || null });
+                      }}
+                      className="w-full max-w-[220px] resize-y rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs"
+                    />
+                  ) : (
+                    <span className="text-xs text-[var(--muted)]">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 align-top">
+                  {u.role === "CLIENT" ? (
+                    <input
+                      type="text"
+                      defaultValue={u.businessLicense ?? ""}
+                      key={`bl-${u.id}-${u.businessLicense ?? ""}`}
+                      placeholder="Business License"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        const prev = (u.businessLicense ?? "").trim();
+                        if (v !== prev) void updateUser(u.id, { businessLicense: v || null });
+                      }}
+                      className="w-full max-w-[140px] rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs"
+                    />
+                  ) : (
+                    <span className="text-xs text-[var(--muted)]">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 align-top">
+                  {u.role === "CLIENT" ? (
+                    <input
+                      type="text"
+                      defaultValue={u.tobaccoLicense ?? ""}
+                      key={`tl-${u.id}-${u.tobaccoLicense ?? ""}`}
+                      placeholder="Tobacco License"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        const prev = (u.tobaccoLicense ?? "").trim();
+                        if (v !== prev) void updateUser(u.id, { tobaccoLicense: v || null });
+                      }}
+                      className="w-full max-w-[140px] rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs"
+                    />
+                  ) : (
+                    <span className="text-xs text-[var(--muted)]">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 align-top text-[var(--muted)]">{u._count.orders}</td>
                 <td className="px-4 py-3 align-top text-xs text-[var(--muted)]">
