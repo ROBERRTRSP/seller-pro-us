@@ -69,6 +69,23 @@ function detectRuleFromMagic(buf: Uint8Array): (typeof ALLOWED)["image/jpeg"] | 
   return null;
 }
 
+async function convertHeicToJpeg(buf: Uint8Array): Promise<Uint8Array> {
+  type HeicConvertFn = (options: {
+    buffer: Buffer;
+    format: "JPEG";
+    quality?: number;
+  }) => Promise<ArrayBuffer | Uint8Array | Buffer>;
+  const mod = await import("heic-convert");
+  const heicConvert = (mod.default ?? mod) as HeicConvertFn;
+  const out = await heicConvert({
+    buffer: Buffer.from(buf),
+    format: "JPEG",
+    quality: 0.9,
+  });
+  if (out instanceof Uint8Array) return out;
+  return new Uint8Array(out);
+}
+
 export async function POST(req: Request) {
   const gate = await requireRole(Role.ADMIN);
   if ("error" in gate && gate.error) return gate.error;
@@ -111,26 +128,42 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Image exceeds 8 MB." }, { status: 400 });
   }
 
-  if (looksLikeHeicOrHeif(buf)) {
-    return NextResponse.json(
-      {
-        error:
-          "HEIC/HEIF is not supported here. On iPhone: Settings → Camera → Formats → “Most Compatible”, or convert to JPG/PNG before uploading.",
-      },
-      { status: 400 },
-    );
+  const isHeicOrHeif = looksLikeHeicOrHeif(buf);
+  let normalized = buf;
+  let forcedRule: (typeof ALLOWED)["image/jpeg"] | null = null;
+  if (isHeicOrHeif) {
+    try {
+      normalized = await convertHeicToJpeg(buf);
+      forcedRule = ALLOWED["image/jpeg"];
+    } catch (e) {
+      console.error("[upload] heic convert", e);
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo convertir la foto HEIC/HEIF. En iPhone o iPad usa Settings > Camera > Formats > Most Compatible, o guarda/exporta la foto como JPG/PNG.",
+        },
+        { status: 400 },
+      );
+    }
+    if (normalized.byteLength > MAX_BYTES) {
+      return NextResponse.json(
+        { error: "La foto convertida supera 8 MB. Intenta con una imagen mas pequena." },
+        { status: 400 },
+      );
+    }
   }
 
   const declaredType = (blob as File).type || "application/octet-stream";
   const fromDeclared = ALLOWED[declaredType];
   const rule =
-    fromDeclared && fromDeclared.magic(buf) ? fromDeclared : detectRuleFromMagic(buf);
+    forcedRule ??
+    (fromDeclared && fromDeclared.magic(normalized) ? fromDeclared : detectRuleFromMagic(normalized));
 
   if (!rule) {
     return NextResponse.json(
       {
         error:
-          "Unrecognized image. Use JPG, PNG, WebP or GIF (max 8 MB). If the photo is from an iPhone, try “Most Compatible” or paste an image URL.",
+          "Unrecognized image. Use JPG, PNG, WebP or GIF (max 8 MB). If the photo is from an iPhone or iPad, try Most Compatible or paste an image URL.",
       },
       { status: 400 },
     );
@@ -160,7 +193,7 @@ export async function POST(req: Request) {
   if (blobToken) {
     try {
       const pathname = `products/${name}`;
-      const uploaded = await put(pathname, Buffer.from(buf), {
+      const uploaded = await put(pathname, Buffer.from(normalized), {
         access: "public",
         contentType,
         token: blobToken,
@@ -179,7 +212,7 @@ export async function POST(req: Request) {
   const fullPath = path.join(dir, name);
   try {
     await mkdir(dir, { recursive: true });
-    await writeFile(fullPath, buf);
+    await writeFile(fullPath, normalized);
   } catch (e) {
     console.error("[upload] writeFile", e);
     return NextResponse.json(
