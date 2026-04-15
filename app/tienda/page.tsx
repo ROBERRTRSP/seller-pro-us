@@ -6,6 +6,7 @@ import { formatCents } from "@/lib/money";
 import { sortCategorySectionKeys } from "@/lib/catalog-sections";
 import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
+import { isOutOfStock, stockPurchaseCap, isUnlimitedStock } from "@/lib/product-stock";
 
 type Product = {
   id: string;
@@ -191,11 +192,11 @@ export default function TiendaPage() {
 
   function addToCart(p: Product, e?: MouseEvent) {
     e?.stopPropagation();
-    if (p.stock < 1) return;
+    if (isOutOfStock(p.stock)) return;
     const cart = readCart();
     const i = cart.findIndex((l) => l.productId === p.id);
     const currentQty = i >= 0 ? cart[i].quantity : 0;
-    const maxAllowed = Math.min(p.stock, MAX_ORDER_LINE_QUANTITY);
+    const maxAllowed = stockPurchaseCap(p.stock, MAX_ORDER_LINE_QUANTITY);
     if (currentQty + 1 > maxAllowed) {
       setMsg(`No hay más existencias de «${p.name}».`);
       return;
@@ -329,7 +330,7 @@ export default function TiendaPage() {
                 key={`flash-${p.id}`}
                 p={p}
                 qty={qtyInCart(p.id)}
-                canAdd={p.stock >= 1 && qtyInCart(p.id) < Math.min(p.stock, MAX_ORDER_LINE_QUANTITY)}
+                canAdd={qtyInCart(p.id) < stockPurchaseCap(p.stock, MAX_ORDER_LINE_QUANTITY)}
                 onAdd={addToCart}
               />
             ))}
@@ -357,7 +358,7 @@ export default function TiendaPage() {
                     key={p.id}
                     p={p}
                     qty={qtyInCart(p.id)}
-                    canAdd={p.stock >= 1 && qtyInCart(p.id) < Math.min(p.stock, MAX_ORDER_LINE_QUANTITY)}
+                    canAdd={qtyInCart(p.id) < stockPurchaseCap(p.stock, MAX_ORDER_LINE_QUANTITY)}
                     onAdd={addToCart}
                   />
                 ))}
@@ -442,7 +443,7 @@ function ProductTile({
             {formatCents(p.priceCents)}
           </p>
           <p className="text-[10px] text-neutral-500">
-            precio actual · Stock {p.stock}
+            precio actual · {isUnlimitedStock(p.stock) ? "Stock ilimitado" : `Stock ${p.stock}`}
           </p>
           {qty > 0 ? (
             <p className="text-[11px] font-semibold text-emerald-700">En carrito: {qty}</p>

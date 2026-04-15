@@ -6,6 +6,7 @@ import { adminFetchJson } from "@/lib/admin-client-fetch";
 import { formatCents } from "@/lib/money";
 import { ProductPhotoUpload } from "@/components/ProductPhotoUpload";
 import { MAX_PROMO_BADGE_LEN } from "@/lib/product-field-limits";
+import { isOutOfStock, isUnlimitedStock, UNLIMITED_STOCK } from "@/lib/product-stock";
 
 type CategoryOption = { id: string; name: string; sortOrder: number };
 
@@ -52,6 +53,7 @@ export default function AdminProductosPage() {
     promoBadge: "",
     categoryId: "",
     stock: "99",
+    unlimitedStock: false,
     imageUrl: "",
   });
   const [editForm, setEditForm] = useState({
@@ -62,6 +64,7 @@ export default function AdminProductosPage() {
     promoBadge: "",
     categoryId: "",
     stock: "0",
+    unlimitedStock: false,
     imageUrl: "",
   });
 
@@ -104,7 +107,8 @@ export default function AdminProductosPage() {
       compareAtDollars: dollarsFromCents(p.compareAtPriceCents),
       promoBadge: p.promoBadge ?? "",
       categoryId: p.category?.id ?? "",
-      stock: String(p.stock),
+      stock: isUnlimitedStock(p.stock) ? "99" : String(p.stock),
+      unlimitedStock: isUnlimitedStock(p.stock),
       imageUrl: p.imageUrl ?? "",
     });
     setError("");
@@ -126,7 +130,9 @@ export default function AdminProductosPage() {
     }
     setEditSaving(true);
     try {
-      const stock = Math.max(0, Math.floor(Number(editForm.stock) || 0));
+      const stock = editForm.unlimitedStock
+        ? UNLIMITED_STOCK
+        : Math.max(0, Math.floor(Number(editForm.stock) || 0));
       const res = await fetch(`/api/admin/products/${editingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -138,6 +144,7 @@ export default function AdminProductosPage() {
           promoBadge: editForm.promoBadge.trim() || null,
           categoryId: editForm.categoryId.trim() || null,
           stock,
+          unlimitedStock: editForm.unlimitedStock,
           imageUrl: editForm.imageUrl.trim() || null,
         }),
       });
@@ -168,7 +175,7 @@ export default function AdminProductosPage() {
     }
     setCreating(true);
     try {
-      const stock = Math.max(0, Math.floor(Number(form.stock) || 0));
+      const stock = form.unlimitedStock ? UNLIMITED_STOCK : Math.max(0, Math.floor(Number(form.stock) || 0));
       const res = await fetch("/api/admin/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -180,6 +187,7 @@ export default function AdminProductosPage() {
           promoBadge: form.promoBadge.trim() || null,
           categoryId: form.categoryId.trim() || null,
           stock,
+          unlimitedStock: form.unlimitedStock,
           imageUrl: form.imageUrl.trim() || null,
         }),
       });
@@ -196,6 +204,7 @@ export default function AdminProductosPage() {
         promoBadge: "",
         categoryId: "",
         stock: "99",
+        unlimitedStock: false,
         imageUrl: "",
       });
       await load();
@@ -318,16 +327,25 @@ export default function AdminProductosPage() {
             onChange={(e) => setForm((f) => ({ ...f, compareAtDollars: e.target.value }))}
             className="w-44 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
           />
-          <label className="text-xs text-[var(--muted)] sm:self-end">
-            Existencias (uds.)
+          <div className="text-xs text-[var(--muted)] sm:self-end">
+            <p>Existencias (uds.)</p>
+            <label className="mt-1 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={form.unlimitedStock}
+                onChange={(e) => setForm((f) => ({ ...f, unlimitedStock: e.target.checked }))}
+              />
+              Stock ilimitado
+            </label>
             <input
               type="number"
               min={0}
               value={form.stock}
               onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+              disabled={form.unlimitedStock}
               className="mt-1 block w-28 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]"
             />
-          </label>
+          </div>
         </div>
         {error && !editingId ? <p className="text-sm text-red-400">{error}</p> : null}
         <button
@@ -369,7 +387,11 @@ export default function AdminProductosPage() {
                       ? ` · Antes ${formatCents(p.compareAtPriceCents)}`
                       : ""}
                     {" · "}
-                    {p.stock > 0 ? `Existencias ${p.stock}` : "Sin stock"}
+                    {isUnlimitedStock(p.stock)
+                      ? "Stock ilimitado"
+                      : isOutOfStock(p.stock)
+                        ? "Sin stock"
+                        : `Existencias ${p.stock}`}
                   </p>
                   <p className="text-[11px] text-[var(--muted)]">
                     {[p.category?.name, p.promoBadge].filter(Boolean).join(" · ") || "—"}
@@ -480,16 +502,27 @@ export default function AdminProductosPage() {
                     onChange={(e) => setEditForm((f) => ({ ...f, compareAtDollars: e.target.value }))}
                     className="w-44 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
                   />
-                  <label className="text-xs text-[var(--muted)] sm:self-end">
-                    Existencias (uds.)
+                  <div className="text-xs text-[var(--muted)] sm:self-end">
+                    <p>Existencias (uds.)</p>
+                    <label className="mt-1 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editForm.unlimitedStock}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, unlimitedStock: e.target.checked }))
+                        }
+                      />
+                      Stock ilimitado
+                    </label>
                     <input
                       type="number"
                       min={0}
                       value={editForm.stock}
                       onChange={(e) => setEditForm((f) => ({ ...f, stock: e.target.value }))}
+                      disabled={editForm.unlimitedStock}
                       className="mt-1 block w-28 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]"
                     />
-                  </label>
+                  </div>
                 </div>
                 {error && editingId ? <p className="text-sm text-red-400">{error}</p> : null}
                 <button

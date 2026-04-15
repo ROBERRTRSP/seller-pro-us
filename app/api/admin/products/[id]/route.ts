@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
 import { hasValidProductImage } from "@/lib/product-image";
 import { MAX_PROMO_BADGE_LEN } from "@/lib/product-field-limits";
+import { UNLIMITED_STOCK } from "@/lib/product-stock";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -27,6 +28,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     categoryId: string | null;
     stock?: number;
     inStock?: boolean;
+    unlimitedStock?: boolean;
     imageUrl: string | null;
   }>;
   try {
@@ -39,10 +41,17 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (body.name !== undefined) data.name = String(body.name).trim();
   if (body.description !== undefined) data.description = String(body.description).trim();
   if (body.priceCents !== undefined) data.priceCents = Math.max(0, Math.floor(Number(body.priceCents) || 0));
-  if (body.stock !== undefined) {
-    data.stock = Math.max(0, Math.floor(Number(body.stock) || 0));
+  if (body.unlimitedStock === true) {
+    data.stock = UNLIMITED_STOCK;
+  } else if (body.stock !== undefined) {
+    const raw = Math.floor(Number(body.stock) || 0);
+    data.stock = raw === UNLIMITED_STOCK ? UNLIMITED_STOCK : Math.max(0, raw);
   } else if (body.inStock !== undefined) {
-    data.stock = Boolean(body.inStock) ? Math.max(1, existing.stock) : 0;
+    if (existing.stock === UNLIMITED_STOCK) {
+      data.stock = body.inStock ? UNLIMITED_STOCK : 0;
+    } else {
+      data.stock = Boolean(body.inStock) ? Math.max(1, existing.stock) : 0;
+    }
   }
   if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl ? String(body.imageUrl).trim() : null;
   if (body.compareAtPriceCents !== undefined) {

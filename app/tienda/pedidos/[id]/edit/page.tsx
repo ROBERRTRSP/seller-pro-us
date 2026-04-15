@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { formatCents } from "@/lib/money";
 import { clientCanEditOrCancelOrder } from "@/lib/order-client-actions";
 import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
+import { isOutOfStock, isUnlimitedStock, stockPurchaseCap } from "@/lib/product-stock";
 
 type OrderItem = {
   id: string;
@@ -97,10 +98,9 @@ export default function EditOrderPage() {
     const it = order.items.find((i) => i.product.id === productId);
     if (!it) return;
     const initial = initialQtyByProduct.get(productId) ?? 0;
-    const max =
-      it.product.stock >= 1
-        ? Math.min(MAX_ORDER_LINE_QUANTITY, it.product.stock)
-        : initial;
+    const max = isOutOfStock(it.product.stock)
+      ? initial
+      : stockPurchaseCap(it.product.stock, MAX_ORDER_LINE_QUANTITY);
     const q = Math.max(0, Math.min(quantity, max));
     setOrder({
       ...order,
@@ -172,10 +172,9 @@ export default function EditOrderPage() {
       <ul className="mt-8 space-y-4">
         {order.items.map((it) => {
           const initial = initialQtyByProduct.get(it.product.id) ?? 0;
-          const max =
-            it.product.stock >= 1
-              ? Math.min(MAX_ORDER_LINE_QUANTITY, it.product.stock)
-              : initial;
+          const max = isOutOfStock(it.product.stock)
+            ? initial
+            : stockPurchaseCap(it.product.stock, MAX_ORDER_LINE_QUANTITY);
           return (
             <li
               key={it.product.id}
@@ -185,9 +184,11 @@ export default function EditOrderPage() {
                 <p className="font-medium text-neutral-900">{it.product.name}</p>
                 <p className="text-sm text-neutral-600">{formatCents(it.product.priceCents)} c/u</p>
                 <p className="text-xs text-neutral-500">
-                  {it.product.stock >= 1
-                    ? `Hasta ${Math.min(MAX_ORDER_LINE_QUANTITY, it.product.stock)} unidades (stock ${it.product.stock})`
-                    : `Sin existencias: máximo ${initial} (lo que ya tenías en el pedido)`}
+                  {isOutOfStock(it.product.stock)
+                    ? `Sin existencias: máximo ${initial} (lo que ya tenías en el pedido)`
+                    : isUnlimitedStock(it.product.stock)
+                      ? `Hasta ${MAX_ORDER_LINE_QUANTITY} unidades por pedido (stock ilimitado)`
+                      : `Hasta ${stockPurchaseCap(it.product.stock, MAX_ORDER_LINE_QUANTITY)} unidades (stock ${it.product.stock})`}
                 </p>
               </div>
               <div className="flex items-center gap-2">

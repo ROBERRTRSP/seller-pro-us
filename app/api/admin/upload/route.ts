@@ -147,6 +147,16 @@ export async function POST(req: Request) {
           : "image/gif";
 
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (!blobToken && process.env.VERCEL) {
+    return NextResponse.json(
+      {
+        error:
+          "Subidas en Vercel requieren Blob: proyecto → Storage → Create Blob Store → Connect to Project (o en Settings → Environment Variables añade BLOB_READ_WRITE_TOKEN). Luego Redeploy.",
+      },
+      { status: 503 },
+    );
+  }
+
   if (blobToken) {
     try {
       const pathname = `products/${name}`;

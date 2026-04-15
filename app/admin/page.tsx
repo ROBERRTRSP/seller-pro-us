@@ -23,7 +23,7 @@ export default async function AdminHomePage() {
       _sum: { totalCents: true },
     }),
     prisma.product.findMany({
-      where: { stock: { lte: 0 } },
+      where: { stock: 0 },
       orderBy: { name: "asc" },
       take: 12,
       select: { id: true, name: true },

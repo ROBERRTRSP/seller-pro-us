@@ -4,10 +4,13 @@ import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
 import { hasValidProductImage } from "@/lib/product-image";
 import { MAX_PROMO_BADGE_LEN } from "@/lib/product-field-limits";
+import { UNLIMITED_STOCK } from "@/lib/product-stock";
 
-function parseStock(body: { stock?: unknown; inStock?: unknown }): number {
+function parseStock(body: { stock?: unknown; inStock?: unknown; unlimitedStock?: unknown }): number {
+  if (body.unlimitedStock === true) return UNLIMITED_STOCK;
   if (body.stock !== undefined && body.stock !== null) {
-    return Math.max(0, Math.floor(Number(body.stock) || 0));
+    const raw = Math.floor(Number(body.stock) || 0);
+    return raw === UNLIMITED_STOCK ? UNLIMITED_STOCK : Math.max(0, raw);
   }
   if (typeof body.inStock === "boolean") return body.inStock ? 99 : 0;
   if (typeof body.inStock === "number") return body.inStock !== 0 ? 99 : 0;
@@ -43,6 +46,7 @@ export async function POST(req: Request) {
     /** Units available; legacy `inStock` boolean still accepted. */
     stock?: number;
     inStock?: boolean;
+    unlimitedStock?: boolean;
     imageUrl?: string | null;
   };
   try {

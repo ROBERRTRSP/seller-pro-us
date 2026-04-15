@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatCents } from "@/lib/money";
 import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
+import { isOutOfStock, stockPurchaseCap } from "@/lib/product-stock";
 
 const CART_KEY = "tienda_cart";
 
@@ -100,7 +101,7 @@ export default function CarritoPage() {
     const p = byId.get(productId);
     if (!p) return;
     const prev = readCart().find((l) => l.productId === productId)?.quantity ?? 0;
-    const cap = p.stock >= 1 ? Math.min(MAX_ORDER_LINE_QUANTITY, p.stock) : prev;
+    const cap = isOutOfStock(p.stock) ? prev : stockPurchaseCap(p.stock, MAX_ORDER_LINE_QUANTITY);
     const q = Math.max(0, Math.min(quantity, cap));
     const next = readCart().filter((l) => l.productId !== productId);
     if (q > 0) next.push({ productId, quantity: q });
@@ -162,7 +163,7 @@ export default function CarritoPage() {
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-neutral-900">{p.name}</p>
                 <p className="text-sm text-neutral-500">{formatCents(p.priceCents)} c/u</p>
-                {p.stock < 1 ? (
+                {isOutOfStock(p.stock) ? (
                   <p className="mt-1 text-xs font-medium text-amber-800">
                     No hay existencias: solo puedes bajar la cantidad o quitar el artículo.
                   </p>
@@ -176,7 +177,7 @@ export default function CarritoPage() {
                   id={`q-${p.id}`}
                   type="number"
                   min={0}
-                  max={p.stock >= 1 ? Math.min(MAX_ORDER_LINE_QUANTITY, p.stock) : line.quantity}
+                  max={isOutOfStock(p.stock) ? line.quantity : stockPurchaseCap(p.stock, MAX_ORDER_LINE_QUANTITY)}
                   value={line.quantity}
                   onChange={(e) => setQty(p.id, Number(e.target.value))}
                   className="min-h-11 w-24 rounded-lg border border-neutral-300 bg-neutral-50 px-3 text-center text-base touch-manipulation sm:min-h-0 sm:w-20 sm:py-1 sm:text-sm"
