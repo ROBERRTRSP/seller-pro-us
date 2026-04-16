@@ -18,6 +18,7 @@
     "db:clear": "npx tsx prisma/clear-store.ts",
     "db:import:april-special": "npx tsx prisma/import-april-special.ts",
     "db:apply:verified-images": "npx tsx prisma/apply-verified-catalog-images.ts",
+    "db:catalogo:april": "npm run db:import:april-special && npm run db:apply:verified-images",
     "db:sync:catalog": "prisma db seed",
     "db:studio": "prisma studio"
   },
