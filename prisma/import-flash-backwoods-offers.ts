@@ -33,14 +33,14 @@ const ROWS: Row[] = [
     name: "Backwoods City Packs Sweet Summertime Chi",
     priceCents: 4599,
     compareAtPriceCents: 7016,
-    stock: 0,
+    stock: 25,
   },
   {
     sku: "flash-bw-city-purple-pack-houston",
     name: "Backwoods City Packs The Purple Pack Houston",
     priceCents: 4599,
     compareAtPriceCents: 7016,
-    stock: 0,
+    stock: 25,
   },
   {
     sku: "flash-bw-select-guatemala-satin",
@@ -112,7 +112,18 @@ async function main() {
     });
     n++;
   }
-  console.log(`OK: ${n} productos flash Backwoods (upsert por sku).`);
+
+  /** Misma línea City Packs importada con otro SKU (p. ej. JR draft `BWCPATL`). */
+  const atl = await prisma.product.updateMany({
+    where: { name: "Backwoods City Packs ATL Southern Sweet Tea" },
+    data: {
+      stock: 25,
+      priceCents: 4599,
+      compareAtPriceCents: 7016,
+      catalogPublished: true,
+    },
+  });
+  console.log(`OK: ${n} productos flash Backwoods (upsert por sku). ATL reposición por nombre: ${atl.count} fila(s).`);
 }
 
 main()
