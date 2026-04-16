@@ -91,6 +91,29 @@ type RowSummary = {
 };
 
 async function main() {
+  if (process.env.JR_BLACK_MILD_DRY_RUN === "1") {
+    const p1 = process.env.JR_BLACK_MILD_HTML_PAGE1?.trim();
+    if (!p1) {
+      throw new Error("JR_BLACK_MILD_DRY_RUN=1 requires JR_BLACK_MILD_HTML_PAGE1=/path/to/saved.html");
+    }
+    const parts = [readFileSync(path.resolve(p1), "utf8")];
+    const p2 = process.env.JR_BLACK_MILD_HTML_PAGE2?.trim();
+    if (p2) parts.push(readFileSync(path.resolve(p2), "utf8"));
+    const { tiles, droppedDuplicateTiles } = parseJrBlackMildPlpHtmlDocuments(parts);
+    const summaries: RowSummary[] = tiles.map((tile) => ({
+      product_name: buildProductDisplayName(tile),
+      size: tile.size ?? "—",
+      pack_size: tile.packSize ?? "—",
+      price: tile.priceUsd != null ? `$${tile.priceUsd.toFixed(2)}` : "—",
+      availability: tile.availability,
+      status: "draft",
+    }));
+    console.log(JSON.stringify({ found: tiles.length, droppedDuplicateTiles }, null, 2));
+    console.log("\n--- Resumen (tabla) ---\n");
+    console.log(markdownTable(summaries));
+    return;
+  }
+
   const snapshot = process.env.JR_BLACK_MILD_WAYBACK_SNAPSHOT?.trim();
   const file1 = process.env.JR_BLACK_MILD_HTML_PAGE1?.trim();
   const file2 = process.env.JR_BLACK_MILD_HTML_PAGE2?.trim();
@@ -116,19 +139,24 @@ async function main() {
       const u2 = waybackWrap(snapshot, liveP2);
       pageUrls.push(u1, u2);
       const r1 = await fetchHtml(u1);
-      htmlParts.push(r1.html);
-      const r2 = await fetchHtml(u2);
-      htmlParts.push(r2.html);
       if (!r1.ok) {
         throw new Error(
           `Wayback page 1 failed or empty (status ${r1.status}). Try another JR_BLACK_MILD_WAYBACK_SNAPSHOT or save HTML to JR_BLACK_MILD_HTML_PAGE1.`,
         );
       }
+      htmlParts.push(r1.html);
+      const r2 = await fetchHtml(u2);
+      if (r2.ok && !isIncapsulaBlockPage(r2.html)) {
+        htmlParts.push(r2.html);
+      } else {
+        console.warn(
+          "Warning: Wayback page 2 missing or blocked; continuing with page 1 only. Save live HTML to JR_BLACK_MILD_HTML_PAGE2 for a full page-2 import.",
+        );
+      }
     } else {
+      fetchMode = "live";
       pageUrls.push(liveP1, liveP2);
       const r1 = await fetchHtml(liveP1);
-      const r2 = await fetchHtml(liveP2);
-      htmlParts.push(r1.html, r2.html);
       if (!r1.ok) {
         throw new Error(
           [
@@ -139,10 +167,19 @@ async function main() {
           ].join("\n"),
         );
       }
+      htmlParts.push(r1.html);
+      const r2 = await fetchHtml(liveP2);
+      if (r2.ok && !isIncapsulaBlockPage(r2.html)) {
+        htmlParts.push(r2.html);
+      } else {
+        console.warn(
+          "Warning: Live page 2 not loaded; continuing with page 1 only. Re-run after saving JR_BLACK_MILD_HTML_PAGE2, or try from a network that is not blocked.",
+        );
+      }
     }
   }
 
-  const tiles = parseJrBlackMildPlpHtmlDocuments(htmlParts);
+  const { tiles, droppedDuplicateTiles } = parseJrBlackMildPlpHtmlDocuments(htmlParts);
   const categoryFallbackUrl = CATEGORY_URL;
 
   const maxSort = (await prisma.category.aggregate({ _max: { sortOrder: true } }))._max.sortOrder ?? 0;
@@ -156,19 +193,19 @@ async function main() {
 
   let created = 0;
   let updated = 0;
-  let skippedDuplicateInBatch = 0;
   let skippedCollision = 0;
   const errors: string[] = [];
 
   const summaries: RowSummary[] = [];
 
   for (const tile of tiles) {
+    if (tile.priceUsd == null || !Number.isFinite(tile.priceUsd)) {
+      errors.push(`${tile.jrItemId}: no price in PLP tile; skipped (no invented price).`);
+      continue;
+    }
     const name = buildPrismaProductName(tile);
     const description = buildDescription(tile);
-    const priceCents =
-      tile.priceUsd != null && Number.isFinite(tile.priceUsd)
-        ? Math.round(tile.priceUsd * 100)
-        : 0;
+    const priceCents = Math.round(tile.priceUsd * 100);
     const sourceUrl = tile.sourceUrl ?? categoryFallbackUrl;
     const stock = stockForAvailability(tile.availability);
 
@@ -243,7 +280,7 @@ async function main() {
       found: tiles.length,
       created,
       updated,
-      skippedDuplicateInBatch,
+      droppedDuplicateTiles,
       skippedCollision,
       errors: errors.length,
     },

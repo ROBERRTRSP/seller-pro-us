@@ -26,6 +26,9 @@ yarn-error.log*
 .pnpm-debug.log*
 coverage/
 
+# Logs de imports (locales)
+prisma/logs/
+
 # IDE (opcional)
 .idea/
 .vscode/*

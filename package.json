@@ -19,6 +19,7 @@
     "db:import:april-special": "npx tsx prisma/import-april-special.ts",
     "db:apply:verified-images": "npx tsx prisma/apply-verified-catalog-images.ts",
     "db:catalogo:april": "npm run db:import:april-special && npm run db:apply:verified-images",
+    "db:import:jr-black-mild": "npx tsx prisma/import-jr-black-mild-catalog.ts",
     "db:sync:catalog": "prisma db seed",
     "db:studio": "prisma studio",
     "catalogo:lavaplus": "npx tsx scripts/scrape-lavaplus-shop.ts",

@@ -147,11 +147,14 @@ export function buildProductDisplayName(tile: ParsedJrBlackMildTile): string {
   return `Black & Mild — ${v}`;
 }
 
-/** Single Prisma `name` field: variant + size + pack (all visible on PLP). */
+/**
+ * Single Prisma `name` field: variant + size + pack (PLP) + JR item id from `data-itemid`
+ * (visible in HTML) so two lines with the same wording stay distinct.
+ */
 export function buildPrismaProductName(tile: ParsedJrBlackMildTile): string {
   const base = buildProductDisplayName(tile);
   const parts = [base, tile.size, tile.packSize].filter(Boolean);
-  return parts.join(" — ");
+  return `${parts.join(" — ")} (${tile.jrItemId})`;
 }
 
 export function buildDescription(tile: ParsedJrBlackMildTile): string {
