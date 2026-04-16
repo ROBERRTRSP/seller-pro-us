@@ -39,12 +39,21 @@ export function isTrustedOperatorUploadImageUrl(url: string): boolean {
   if (t.startsWith("/uploads/")) return true;
   try {
     const u = new URL(t);
+    /** Dominio propio con ruta `/uploads/` (p. ej. `https://tienda.com/uploads/uuid.jpg`). */
+    if (u.pathname.startsWith("/uploads/")) return true;
     if (u.hostname.endsWith("blob.vercel-storage.com")) return true;
     if ((u.hostname === "localhost" || u.hostname === "127.0.0.1") && t.includes("/uploads/")) return true;
   } catch {
     return false;
   }
   return false;
+}
+
+/** Enlace que no es subida/Blob: exige casilla de verificación en Admin. */
+export function requiresExternalImageVerification(url: string): boolean {
+  const t = url.trim();
+  if (!t) return false;
+  return !isTrustedOperatorUploadImageUrl(t);
 }
 
 /**
@@ -66,6 +75,7 @@ export function isTechnicallyDirectProductImageUrl(url: string): boolean {
       return false;
     }
     const path = u.pathname;
+    if (path.startsWith("/uploads/")) return true;
     if (IMAGE_EXT.test(path) || IMAGE_EXT.test(u.href)) return true;
     if (u.hostname.endsWith("blob.vercel-storage.com")) return true;
     if (u.hostname.endsWith("wikimedia.org") && path.includes("/commons/") && IMAGE_EXT.test(path)) return true;

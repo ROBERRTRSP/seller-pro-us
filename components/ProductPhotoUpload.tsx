@@ -68,9 +68,8 @@ export function ProductPhotoUpload({ value, onChange, disabled, inputId }: Props
           {busy ? "Subiendo…" : "📷 Hacer o elegir foto"}
         </label>
         <span className="self-center text-xs text-[var(--muted)] sm:max-w-[220px]">
-          En el movil puedes usar la camara o la galeria. Max. 8 MB (JPG, PNG, WebP, GIF). HEIC/HEIF de iPhone y iPad
-          se convierte a JPG automaticamente. Se guarda el archivo completo:
-          usa Wi‑Fi si la foto es grande.
+          En el móvil puedes usar la cámara o la galería. Máx. 8 MB (JPG, PNG, WebP, GIF). HEIC/HEIF de iPhone y iPad
+          se convierte a JPG automáticamente. Se guarda el archivo completo: usa Wi‑Fi si la foto es grande.
         </span>
       </div>
       {localError ? <p className="text-sm text-red-400">{localError}</p> : null}

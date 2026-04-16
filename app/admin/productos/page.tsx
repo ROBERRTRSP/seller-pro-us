@@ -7,13 +7,7 @@ import { formatCents } from "@/lib/money";
 import { ProductPhotoUpload } from "@/components/ProductPhotoUpload";
 import { MAX_PROMO_BADGE_LEN } from "@/lib/product-field-limits";
 import { isOutOfStock, isUnlimitedStock, UNLIMITED_STOCK } from "@/lib/product-stock";
-import { isTrustedOperatorUploadImageUrl } from "@/lib/product-image";
-
-function externalImageUrlNeedsVerification(url: string): boolean {
-  const t = url.trim();
-  if (!t) return false;
-  return !isTrustedOperatorUploadImageUrl(t);
-}
+import { isTrustedOperatorUploadImageUrl, requiresExternalImageVerification } from "@/lib/product-image";
 
 type CategoryOption = { id: string; name: string; sortOrder: number };
 
@@ -130,9 +124,9 @@ export default function AdminProductosPage() {
     if (!editingId) return;
     setError("");
     const ext = editForm.imageUrl.trim();
-    if (externalImageUrlNeedsVerification(ext) && !editForm.imageVerified) {
+    if (requiresExternalImageVerification(ext) && !editForm.imageVerified) {
       setError(
-        "Para una URL externa, marca la casilla confirmando marca, tipo de producto y presentación, o sube un archivo.",
+        "Solo si pegas un enlace externo (no una foto subida arriba): marca la casilla confirmando marca, tipo y presentación.",
       );
       return;
     }
@@ -179,9 +173,9 @@ export default function AdminProductosPage() {
     e.preventDefault();
     setError("");
     const extNew = form.imageUrl.trim();
-    if (externalImageUrlNeedsVerification(extNew) && !form.imageVerified) {
+    if (requiresExternalImageVerification(extNew) && !form.imageVerified) {
       setError(
-        "Para una URL externa, marca la casilla confirmando marca, tipo de producto y presentación, o sube un archivo. También puedes crear el producto solo con foto pendiente (sin URL).",
+        "Solo si pegas un enlace externo: marca la casilla confirmando marca, tipo y presentación. Si usas «Hacer o elegir foto», no hace falta. También puedes crear el producto con foto pendiente (sin imagen).",
       );
       return;
     }
@@ -320,30 +314,40 @@ export default function AdminProductosPage() {
           type="text"
           inputMode="url"
           autoComplete="off"
-          placeholder="URL directa a imagen (opcional; si no hay, queda pendiente)"
-          value={form.imageUrl.startsWith("/uploads/") ? "" : form.imageUrl}
+          placeholder={
+            isTrustedOperatorUploadImageUrl(form.imageUrl)
+              ? "Foto subida arriba. «Quitar imagen» si quieres pegar un enlace."
+              : "URL directa a imagen (opcional; sin URL = foto pendiente)"
+          }
+          value={isTrustedOperatorUploadImageUrl(form.imageUrl) ? "" : form.imageUrl}
+          readOnly={isTrustedOperatorUploadImageUrl(form.imageUrl)}
           onChange={(e) => {
             const v = e.target.value;
             setForm((f) => {
-              if (f.imageUrl.startsWith("/uploads/") && v.trim() === "") return f;
+              if (isTrustedOperatorUploadImageUrl(f.imageUrl)) return f;
               return { ...f, imageUrl: v, imageVerified: false };
             });
           }}
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm read-only:cursor-default read-only:opacity-90"
         />
-        <label className="flex cursor-pointer items-start gap-2 text-xs text-[var(--muted)]">
-          <input
-            type="checkbox"
-            checked={form.imageVerified}
-            onChange={(e) => setForm((f) => ({ ...f, imageVerified: e.target.checked }))}
-            className="mt-0.5 shrink-0"
-          />
-          <span>
-            Confirmo que la imagen (vista previa o URL) coincide en <strong>marca</strong>,{" "}
-            <strong>tipo de producto</strong> y <strong>presentación</strong> con este artículo.
-            Obligatorio para enlaces externos; las subidas cuentan como verificación del operador.
-          </span>
-        </label>
+        {requiresExternalImageVerification(form.imageUrl) ? (
+          <label className="flex cursor-pointer items-start gap-2 text-xs text-[var(--muted)]">
+            <input
+              type="checkbox"
+              checked={form.imageVerified}
+              onChange={(e) => setForm((f) => ({ ...f, imageVerified: e.target.checked }))}
+              className="mt-0.5 shrink-0"
+            />
+            <span>
+              Confirmo que esta <strong>URL</strong> coincide en <strong>marca</strong>, tipo de
+              producto y presentación (solo enlaces pegados aquí, no fotos subidas con la cámara).
+            </span>
+          </label>
+        ) : form.imageUrl.trim() ? (
+          <p className="text-xs font-medium text-emerald-600/95">
+            Foto subida: puedes guardar sin marcar la casilla anterior.
+          </p>
+        ) : null}
         <div className="flex flex-wrap gap-3">
           <input
             required
@@ -510,29 +514,42 @@ export default function AdminProductosPage() {
                   type="text"
                   inputMode="url"
                   autoComplete="off"
-                  placeholder="URL directa a imagen (opcional)"
-                  value={editForm.imageUrl.startsWith("/uploads/") ? "" : editForm.imageUrl}
+                  placeholder={
+                    isTrustedOperatorUploadImageUrl(editForm.imageUrl)
+                      ? "Foto subida arriba. «Quitar imagen» si quieres pegar un enlace."
+                      : "URL directa a imagen (opcional)"
+                  }
+                  value={isTrustedOperatorUploadImageUrl(editForm.imageUrl) ? "" : editForm.imageUrl}
+                  readOnly={isTrustedOperatorUploadImageUrl(editForm.imageUrl)}
                   onChange={(e) => {
                     const v = e.target.value;
                     setEditForm((f) => {
-                      if (f.imageUrl.startsWith("/uploads/") && v.trim() === "") return f;
+                      if (isTrustedOperatorUploadImageUrl(f.imageUrl)) return f;
                       return { ...f, imageUrl: v, imageVerified: false };
                     });
                   }}
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm read-only:cursor-default read-only:opacity-90"
                 />
-                <label className="flex cursor-pointer items-start gap-2 text-xs text-[var(--muted)]">
-                  <input
-                    type="checkbox"
-                    checked={editForm.imageVerified}
-                    onChange={(e) => setEditForm((f) => ({ ...f, imageVerified: e.target.checked }))}
-                    className="mt-0.5 shrink-0"
-                  />
-                  <span>
-                    Confirmo marca, tipo de producto y presentación para esta imagen (obligatorio si
-                    usas URL externa).
-                  </span>
-                </label>
+                {requiresExternalImageVerification(editForm.imageUrl) ? (
+                  <label className="flex cursor-pointer items-start gap-2 text-xs text-[var(--muted)]">
+                    <input
+                      type="checkbox"
+                      checked={editForm.imageVerified}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, imageVerified: e.target.checked }))
+                      }
+                      className="mt-0.5 shrink-0"
+                    />
+                    <span>
+                      Confirmo que esta <strong>URL</strong> coincide en marca, tipo y presentación
+                      (solo si pegaste enlace aquí, no si usaste cámara o galería).
+                    </span>
+                  </label>
+                ) : editForm.imageUrl.trim() ? (
+                  <p className="text-xs font-medium text-emerald-600/95">
+                    Foto subida: puedes guardar sin marcar la casilla.
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap gap-3">
                   <input
                     required
