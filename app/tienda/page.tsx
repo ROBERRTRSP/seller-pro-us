@@ -22,6 +22,11 @@ type Product = {
   barcode: string | null;
   imagePending: boolean;
   imageUrl: string | null;
+  brand?: string | null;
+  size?: string | null;
+  packSize?: string | null;
+  ageRestricted?: boolean;
+  minimumAge?: number | null;
 };
 
 const CART_KEY = "tienda_cart";

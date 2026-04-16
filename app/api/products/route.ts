@@ -10,6 +10,7 @@ export async function GET() {
   if ("error" in gate && gate.error) return gate.error;
 
   const rows = await prisma.product.findMany({
+    where: { catalogPublished: true },
     orderBy: { name: "asc" },
     select: {
       id: true,
@@ -23,6 +24,11 @@ export async function GET() {
       barcode: true,
       imageUrl: true,
       imagePending: true,
+      brand: true,
+      size: true,
+      packSize: true,
+      ageRestricted: true,
+      minimumAge: true,
       category: { select: { name: true, sortOrder: true } },
     },
   });
@@ -39,6 +45,11 @@ export async function GET() {
     barcode: p.barcode,
     imagePending: p.imagePending,
     imageUrl: productCatalogImageVisible(p.imagePending, p.imageUrl) ? p.imageUrl : null,
+    brand: p.brand,
+    size: p.size,
+    packSize: p.packSize,
+    ageRestricted: p.ageRestricted,
+    minimumAge: p.minimumAge,
     category: p.category?.name ?? null,
     categorySortOrder: p.category?.sortOrder ?? 999999,
   }));

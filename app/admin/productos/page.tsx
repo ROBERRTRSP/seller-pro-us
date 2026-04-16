@@ -24,6 +24,14 @@ type Product = {
   imagePending: boolean;
   sku?: string | null;
   barcode?: string | null;
+  brand?: string | null;
+  size?: string | null;
+  packSize?: string | null;
+  sourceUrl?: string | null;
+  imageStatus?: string | null;
+  ageRestricted?: boolean;
+  minimumAge?: number | null;
+  catalogPublished?: boolean;
 };
 
 const BADGE_PRESETS = ["", "Rollback", "Clearance", "Reduced price"];
@@ -39,6 +47,14 @@ function parseDollarsToCents(s: string): number | null {
   const n = Math.round(parseFloat(t) * 100);
   if (!Number.isFinite(n) || n <= 0) return null;
   return n;
+}
+
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 export default function AdminProductosPage() {
@@ -72,17 +88,20 @@ export default function AdminProductosPage() {
     unlimitedStock: false,
     imageUrl: "",
     imageVerified: false,
+    catalogPublished: true,
+    sourceUrl: "",
   });
   const [listSearch, setListSearch] = useState("");
 
   const filteredList = useMemo(() => {
-    const q = listSearch.trim().toLowerCase();
+    const q = normalizeSearchText(listSearch);
     const base =
       !q
         ? list
         : list.filter((p) => {
-            const haystack =
-              `${p.name} ${p.description} ${p.category?.name ?? ""} ${p.promoBadge ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""}`.toLowerCase();
+            const haystack = normalizeSearchText(
+              `${p.name} ${p.description} ${p.category?.name ?? ""} ${p.promoBadge ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""} ${p.brand ?? ""} ${p.sourceUrl ?? ""}`,
+            );
             return haystack.includes(q);
           });
     if (!editingId || base.some((p) => p.id === editingId)) return base;
@@ -133,6 +152,8 @@ export default function AdminProductosPage() {
       unlimitedStock: isUnlimitedStock(p.stock),
       imageUrl: p.imageUrl ?? "",
       imageVerified: false,
+      catalogPublished: p.catalogPublished !== false,
+      sourceUrl: p.sourceUrl ?? "",
     });
     setError("");
   }
@@ -173,6 +194,7 @@ export default function AdminProductosPage() {
           unlimitedStock: editForm.unlimitedStock,
           imageUrl: editForm.imageUrl.trim() || null,
           imageVerified: editForm.imageVerified,
+          catalogPublished: editForm.catalogPublished,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -419,16 +441,27 @@ export default function AdminProductosPage() {
         <label htmlFor="admin-productos-buscar" className="sr-only">
           Buscar en la lista de productos
         </label>
-        <input
-          id="admin-productos-buscar"
-          type="search"
-          enterKeyHint="search"
-          autoComplete="off"
-          placeholder="Buscar por nombre, SKU, código de barras, categoría o distintivo…"
-          value={listSearch}
-          onChange={(e) => setListSearch(e.target.value)}
-          className="mt-3 w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-sm text-[var(--text)] outline-none ring-[var(--accent)]/25 placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:ring-2"
-        />
+        <div className="mt-3 flex gap-2">
+          <input
+            id="admin-productos-buscar"
+            type="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            placeholder="Buscar por nombre, SKU, código de barras, categoría o distintivo…"
+            value={listSearch}
+            onChange={(e) => setListSearch(e.target.value)}
+            className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-sm text-[var(--text)] outline-none ring-[var(--accent)]/25 placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:ring-2"
+          />
+          {listSearch.trim() ? (
+            <button
+              type="button"
+              onClick={() => setListSearch("")}
+              className="shrink-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+            >
+              Limpiar
+            </button>
+          ) : null}
+        </div>
         {listSearch.trim() ? (
           <p className="mt-2 text-xs text-[var(--muted)]">
             {filteredList.length === 0
@@ -476,10 +509,30 @@ export default function AdminProductosPage() {
                         : `Existencias ${p.stock}`}
                   </p>
                   <p className="text-[11px] text-[var(--muted)]">
-                    {[p.category?.name, p.promoBadge, p.imagePending ? "Imagen pendiente" : null]
+                    {[
+                      p.category?.name,
+                      p.promoBadge,
+                      p.imagePending ? "Imagen pendiente" : null,
+                      p.catalogPublished === false ? "Borrador (no visible en tienda)" : null,
+                      p.ageRestricted && p.minimumAge ? `${p.minimumAge}+` : p.ageRestricted ? "Edad mínima" : null,
+                      p.imageStatus === "pending-permission" ? "Imagen: permiso pendiente" : null,
+                    ]
                       .filter(Boolean)
                       .join(" · ") || "—"}
                   </p>
+                  {p.sourceUrl ? (
+                    <p className="mt-1 truncate text-[10px] text-[var(--muted)]">
+                      Referencia:{" "}
+                      <a
+                        href={p.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[var(--accent)] hover:underline"
+                      >
+                        {p.sourceUrl}
+                      </a>
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
@@ -592,6 +645,33 @@ export default function AdminProductosPage() {
                 ) : editForm.imageUrl.trim() ? (
                   <p className="text-xs font-medium text-emerald-600/95">
                     Foto subida: puedes guardar sin marcar la casilla.
+                  </p>
+                ) : null}
+                <label className="flex cursor-pointer items-start gap-2 text-xs text-[var(--muted)]">
+                  <input
+                    type="checkbox"
+                    checked={editForm.catalogPublished}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, catalogPublished: e.target.checked }))
+                    }
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span>
+                    <strong>Visible en la tienda</strong> (requiere precio &gt; 0, foto verificada y URL
+                    directa o subida). Desmarca para dejar en borrador.
+                  </span>
+                </label>
+                {editForm.sourceUrl ? (
+                  <p className="text-[11px] text-[var(--muted)]">
+                    URL de referencia (solo lectura en este formulario):{" "}
+                    <a
+                      href={editForm.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="break-all text-[var(--accent)] hover:underline"
+                    >
+                      {editForm.sourceUrl}
+                    </a>
                   </p>
                 ) : null}
                 <div className="flex flex-wrap gap-3">

@@ -37,7 +37,9 @@ export async function POST(req: Request) {
 
   try {
     const order = await prisma.$transaction(async (tx) => {
-      const products = await tx.product.findMany({ where: { id: { in: ids } } });
+      const products = await tx.product.findMany({
+        where: { id: { in: ids }, catalogPublished: true },
+      });
       const byId = new Map(products.map((p) => [p.id, p]));
 
       let totalCents = 0;

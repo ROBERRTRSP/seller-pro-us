@@ -22,7 +22,8 @@
     "db:sync:catalog": "prisma db seed",
     "db:studio": "prisma studio",
     "catalogo:lavaplus": "npx tsx scripts/scrape-lavaplus-shop.ts",
-    "db:import:lavaplus": "npx tsx prisma/import-lavaplus-5999.ts"
+    "db:import:lavaplus": "npx tsx prisma/import-lavaplus-5999.ts",
+    "db:import:jr-backwoods": "npx tsx prisma/import-jr-backwoods-draft.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

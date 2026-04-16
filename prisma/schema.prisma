@@ -73,6 +73,21 @@ model Product {
   /** When true, la tienda muestra «foto pendiente» y no usa imageUrl aunque exista borrador en historial (siempre null en flujo nuevo). */
   imagePending         Boolean     @default(false)
   imageUrl             String?
+  /** Manufacturer / line label (e.g. Backwoods). */
+  brand                String?
+  /** Listing size as shown on source (e.g. 4.50 × 32). */
+  size                 String?
+  packSize             String?     @map("pack_size")
+  /** Canonical product page used for catalog provenance (no hotlinking of images). */
+  sourceUrl            String?     @map("source_url")
+  /** e.g. pending-permission, approved — complements imagePending for imports. */
+  imageStatus          String?     @map("image_status")
+  /** Source listing: in_stock | backorder | sold_out (imports). */
+  availability         String?
+  ageRestricted        Boolean     @default(false) @map("age_restricted")
+  minimumAge           Int?        @map("minimum_age")
+  /** When false, hidden from shopper catalog (draft / awaiting approved photo). */
+  catalogPublished     Boolean     @default(true) @map("catalog_published")
   createdAt            DateTime      @default(now())
   orderItems           OrderItem[]
 }

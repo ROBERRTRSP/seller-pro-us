@@ -113,7 +113,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
       }
 
       const o = await prisma.$transaction(async (tx) => {
-        await replaceOrderItemsForOrder(tx, id, cleaned);
+        await replaceOrderItemsForOrder(tx, id, cleaned, { allowDraftProducts: true });
         if (Object.keys(data).length > 0) {
           return tx.order.update({ where: { id }, data });
         }

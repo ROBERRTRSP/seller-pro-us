@@ -26,6 +26,7 @@ export async function replaceOrderItemsForOrder(
   tx: Prisma.TransactionClient,
   orderId: string,
   cleanedLines: OrderLineInput[],
+  opts?: { allowDraftProducts?: boolean },
 ): Promise<void> {
   const o = await tx.order.findFirst({ where: { id: orderId }, include: { items: true } });
   if (!o) {
@@ -39,7 +40,12 @@ export async function replaceOrderItemsForOrder(
   await tx.orderItem.deleteMany({ where: { orderId } });
 
   const ids = [...new Set(cleanedLines.map((c) => c.productId))];
-  const products = await tx.product.findMany({ where: { id: { in: ids } } });
+  const products = await tx.product.findMany({
+    where: {
+      id: { in: ids },
+      ...(opts?.allowDraftProducts ? {} : { catalogPublished: true }),
+    },
+  });
   const byId = new Map(products.map((p) => [p.id, p]));
 
   let totalCents = 0;

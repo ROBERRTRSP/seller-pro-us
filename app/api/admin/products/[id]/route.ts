@@ -37,6 +37,14 @@ export async function PATCH(req: Request, ctx: Ctx) {
     unlimitedStock?: boolean;
     imageUrl?: string | null;
     imageVerified?: boolean;
+    brand?: string | null;
+    size?: string | null;
+    packSize?: string | null;
+    sourceUrl?: string | null;
+    imageStatus?: string | null;
+    ageRestricted?: boolean;
+    minimumAge?: number | null;
+    catalogPublished?: boolean;
   }>;
   try {
     body = await req.json();
@@ -91,6 +99,38 @@ export async function PATCH(req: Request, ctx: Ctx) {
     }
   }
 
+  if (body.brand !== undefined) {
+    data.brand = body.brand === null || String(body.brand).trim() === "" ? null : String(body.brand).trim();
+  }
+  if (body.size !== undefined) {
+    data.size = body.size === null || String(body.size).trim() === "" ? null : String(body.size).trim();
+  }
+  if (body.packSize !== undefined) {
+    data.packSize =
+      body.packSize === null || String(body.packSize).trim() === "" ? null : String(body.packSize).trim();
+  }
+  if (body.sourceUrl !== undefined) {
+    data.sourceUrl =
+      body.sourceUrl === null || String(body.sourceUrl).trim() === ""
+        ? null
+        : String(body.sourceUrl).trim();
+  }
+  if (body.imageStatus !== undefined) {
+    data.imageStatus =
+      body.imageStatus === null || String(body.imageStatus).trim() === ""
+        ? null
+        : String(body.imageStatus).trim();
+  }
+  if (body.ageRestricted !== undefined) data.ageRestricted = Boolean(body.ageRestricted);
+  if (body.minimumAge !== undefined) {
+    if (body.minimumAge === null) data.minimumAge = null;
+    else {
+      const m = Math.floor(Number(body.minimumAge));
+      data.minimumAge = Number.isFinite(m) && m > 0 ? m : null;
+    }
+  }
+  if (body.catalogPublished !== undefined) data.catalogPublished = Boolean(body.catalogPublished);
+
   const mergedPrice =
     body.priceCents !== undefined ? (data.priceCents as number) : existing.priceCents;
   const mergedCompare =
@@ -123,6 +163,21 @@ export async function PATCH(req: Request, ctx: Ctx) {
       { error: "Sin foto verificada el producto debe quedar con imagen pendiente." },
       { status: 400 },
     );
+  }
+
+  if (body.catalogPublished === true) {
+    if (mergedPrice <= 0) {
+      return NextResponse.json(
+        { error: "Indica un precio mayor que 0 antes de publicar el producto en la tienda." },
+        { status: 400 },
+      );
+    }
+    if (mergedPending || !mergedUrl || !isTechnicallyDirectProductImageUrl(mergedUrl)) {
+      return NextResponse.json(
+        { error: "No se puede publicar en la tienda sin imagen aprobada y URL verificada." },
+        { status: 400 },
+      );
+    }
   }
 
   if (Object.keys(data).length === 0) {
