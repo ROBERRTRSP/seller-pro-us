@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { adminFetchJson } from "@/lib/admin-client-fetch";
 import { formatCents } from "@/lib/money";
@@ -22,6 +22,8 @@ type Product = {
   stock: number;
   imageUrl: string | null;
   imagePending: boolean;
+  sku?: string | null;
+  barcode?: string | null;
 };
 
 const BADGE_PRESETS = ["", "Rollback", "Clearance", "Reduced price"];
@@ -71,6 +73,22 @@ export default function AdminProductosPage() {
     imageUrl: "",
     imageVerified: false,
   });
+  const [listSearch, setListSearch] = useState("");
+
+  const filteredList = useMemo(() => {
+    const q = listSearch.trim().toLowerCase();
+    const base =
+      !q
+        ? list
+        : list.filter((p) => {
+            const haystack =
+              `${p.name} ${p.description} ${p.category?.name ?? ""} ${p.promoBadge ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""}`.toLowerCase();
+            return haystack.includes(q);
+          });
+    if (!editingId || base.some((p) => p.id === editingId)) return base;
+    const current = list.find((p) => p.id === editingId);
+    return current ? [current, ...base] : base;
+  }, [list, listSearch, editingId]);
 
   async function load() {
     const [pr, cr] = await Promise.all([
@@ -396,8 +414,34 @@ export default function AdminProductosPage() {
         </button>
       </form>
 
-      <ul className="mt-10 space-y-4">
-        {list.map((p) => (
+      <div className="mt-10 border-t border-[var(--border)] pt-8">
+        <h2 className="text-sm font-semibold text-[var(--text)]">Lista de productos</h2>
+        <label htmlFor="admin-productos-buscar" className="sr-only">
+          Buscar en la lista de productos
+        </label>
+        <input
+          id="admin-productos-buscar"
+          type="search"
+          enterKeyHint="search"
+          autoComplete="off"
+          placeholder="Buscar por nombre, SKU, código de barras, categoría o distintivo…"
+          value={listSearch}
+          onChange={(e) => setListSearch(e.target.value)}
+          className="mt-3 w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-sm text-[var(--text)] outline-none ring-[var(--accent)]/25 placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:ring-2"
+        />
+        {listSearch.trim() ? (
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            {filteredList.length === 0
+              ? "Ningún resultado."
+              : `Mostrando ${filteredList.length} de ${list.length} productos.`}
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-[var(--muted)]">{list.length} productos en total.</p>
+        )}
+      </div>
+
+      <ul className="mt-4 space-y-4">
+        {filteredList.map((p) => (
           <li
             key={p.id}
             className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
