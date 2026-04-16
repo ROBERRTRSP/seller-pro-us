@@ -32,6 +32,7 @@
     "db:import:bluntville-our-story": "npx tsx prisma/import-bluntville-our-story.ts",
     "db:import:flash-backwoods": "npx tsx prisma/import-flash-backwoods-offers.ts",
     "catalog:blunt-backwoods": "npx tsx scripts/build-catalogo-blunt-backwoods.ts",
+    "catalog:gotham2599": "npx tsx scripts/build-catalogo-gotham-2599.ts",
     "db:import:bulk-catalog": "npx tsx prisma/bulk-import-catalog.ts"
   },
   "prisma": {
