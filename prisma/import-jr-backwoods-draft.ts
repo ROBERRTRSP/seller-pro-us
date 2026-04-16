@@ -1,6 +1,6 @@
 /**
  * Importa prisma/data/jr-backwoods-draft.json: Backwoods en borrador (sin imagen publicada,
- * sin catálogo en tienda hasta catalogPublished + foto verificada).
+ * visibles en tienda; imagen sigue pendiente hasta subir/verificar en Admin).
  *
  *   npx tsx prisma/import-jr-backwoods-draft.ts
  */
@@ -69,7 +69,8 @@ async function main() {
         sourceUrl: r.source_url,
         ageRestricted: true,
         minimumAge: 21,
-        catalogPublished: false,
+        catalogPublished: true,
+        listingStatus: "published",
         sku: r.sku,
         barcode: null,
       },
@@ -87,13 +88,15 @@ async function main() {
         sourceUrl: r.source_url,
         ageRestricted: true,
         minimumAge: 21,
+        catalogPublished: true,
+        listingStatus: "published",
         barcode: null,
       },
     });
     n++;
   }
 
-  console.log(`Imported ${n} JR Backwoods draft products (Tobacco / not visible in shop until published).`);
+  console.log(`Imported ${n} JR Backwoods products (Tobacco; visibles en tienda, foto puede seguir pendiente).`);
 }
 
 main()

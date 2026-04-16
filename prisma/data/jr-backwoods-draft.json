@@ -67,7 +67,7 @@
     "sku": "BWCPHOU",
     "source_url": "https://www.jrcigars.com/item/backwoods-cigars/the-purple-pack-houston/BWCPHOU.html",
     "image_status": "pending-permission",
-    "stock": 0
+    "stock": 25
   },
   {
     "category": "Tobacco",
@@ -81,20 +81,20 @@
     "sku": "BWCPCHI",
     "source_url": "https://www.jrcigars.com/item/backwoods-cigars/sweet-summertime-chi/BWCPCHI.html",
     "image_status": "pending-permission",
-    "stock": 0
+    "stock": 25
   },
   {
     "category": "Tobacco",
     "brand": "Backwoods",
     "product_name": "Backwoods City Packs ATL Southern Sweet Tea",
-    "description": "WARNING: JRCigars.com does not sell tobacco related products to anyone under the age of 21, nor do we sell cigarettes. Cigars and Tobacco products on this website are not intended to be purchased by anyone under the age of 21. All references to \"mellow\", \"medium\", \"full\" are only descriptors of flavor. No cigar should be considered to present a reduced risk of harm compared to other cigars.",
-    "size": null,
-    "pack_size": null,
-    "price": null,
-    "compare_at_price": null,
+    "description": "Backwoods City Packs ATL Southern Sweet Tea 4.50 × 32, Connecticut Broadleaf wrapper, 8 Packs of 5 (total of 40). JR list price $45.99 (retail $70.16).",
+    "size": "4.50 × 32",
+    "pack_size": "8 Packs of 5 (total of 40)",
+    "price": 45.99,
+    "compare_at_price": 70.16,
     "sku": "BWCPATL",
     "source_url": "https://www.jrcigars.com/item/backwoods-cigars/atl-southern-sweet-tea/BWCPATL.html",
     "image_status": "pending-permission",
-    "stock": 0
+    "stock": 25
   }
 ]

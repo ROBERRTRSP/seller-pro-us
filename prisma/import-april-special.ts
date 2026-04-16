@@ -89,6 +89,8 @@ async function main() {
       stock,
       imageUrl: null as string | null,
       imagePending: true,
+      catalogPublished: true,
+      listingStatus: "published",
     };
 
     if (existing) {

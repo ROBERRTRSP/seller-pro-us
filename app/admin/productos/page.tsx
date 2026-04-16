@@ -92,6 +92,8 @@ export default function AdminProductosPage() {
     sourceUrl: "",
   });
   const [listSearch, setListSearch] = useState("");
+  const [publishAllBusy, setPublishAllBusy] = useState(false);
+  const [publishAllMsg, setPublishAllMsg] = useState("");
 
   const filteredList = useMemo(() => {
     const q = normalizeSearchText(listSearch);
@@ -274,6 +276,38 @@ export default function AdminProductosPage() {
     await load();
   }
 
+  async function publishAllToStorefront() {
+    if (
+      !confirm(
+        "¿Publicar todos los productos en la tienda (/tienda)? Los que estaban en borrador pasarán a visibles para clientes (las fotos pueden seguir pendientes).",
+      )
+    ) {
+      return;
+    }
+    setPublishAllMsg("");
+    setPublishAllBusy(true);
+    try {
+      const res = await adminFetchJson<{
+        ok?: boolean;
+        updated?: number;
+        totalProducts?: number;
+        wereUnpublishedBefore?: number;
+        error?: string;
+      }>("/api/admin/catalog/publish-all", { method: "POST" });
+      if (!res.ok) {
+        setPublishAllMsg(res.error);
+        return;
+      }
+      const d = res.data;
+      setPublishAllMsg(
+        `Listo: ${d.updated ?? 0} producto(s) actualizado(s). Total en BD: ${d.totalProducts ?? "—"}. Antes ocultos: ${d.wereUnpublishedBefore ?? "—"}.`,
+      );
+      await load();
+    } finally {
+      setPublishAllBusy(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-[var(--muted)]">Cargando…</p>;
   }
@@ -290,6 +324,24 @@ export default function AdminProductosPage() {
         </Link>
         .
       </p>
+
+      <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-neutral-800 dark:text-neutral-100">
+        <p className="font-medium">Si en /tienda no ves los productos importados</p>
+        <p className="mt-1 text-[var(--muted)]">
+          Ejecutar <code className="rounded bg-black/10 px-1">npm run db:publish:all-catalog</code> en tu
+          Mac solo actualiza la base de datos del <code className="rounded bg-black/10 px-1">.env</code>{" "}
+          local. En producción (p. ej. Vercel) hay que publicar contra la misma BD que usa la web.
+        </p>
+        <button
+          type="button"
+          disabled={publishAllBusy}
+          onClick={() => void publishAllToStorefront()}
+          className="mt-3 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {publishAllBusy ? "Publicando…" : "Publicar todos en la tienda (esta BD)"}
+        </button>
+        {publishAllMsg ? <p className="mt-2 text-xs text-[var(--muted)]">{publishAllMsg}</p> : null}
+      </div>
 
       <form
         onSubmit={createProduct}

@@ -59,6 +59,8 @@ async function main() {
         stock: UNLIMITED_STOCK,
         imageUrl: r.image,
         imagePending: false,
+        catalogPublished: true,
+        listingStatus: "published",
         sku: r.sku,
         barcode: r.barcode,
       },
@@ -72,6 +74,8 @@ async function main() {
         stock: UNLIMITED_STOCK,
         imageUrl: r.image,
         imagePending: false,
+        catalogPublished: true,
+        listingStatus: "published",
         barcode: r.barcode,
       },
     });

@@ -224,6 +224,8 @@ async function main() {
             availability: tile.availability,
             sourceUrl,
             stock,
+            catalogPublished: true,
+            listingStatus: "published",
           },
         });
         updated++;
@@ -248,7 +250,8 @@ async function main() {
             sourceUrl,
             ageRestricted: true,
             minimumAge: 21,
-            catalogPublished: false,
+            catalogPublished: true,
+            listingStatus: "published",
             availability: tile.availability,
           },
         });
