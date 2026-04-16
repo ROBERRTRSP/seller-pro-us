@@ -25,6 +25,7 @@
     "db:studio": "prisma studio",
     "catalogo:lavaplus": "npx tsx scripts/scrape-lavaplus-shop.ts",
     "db:import:lavaplus": "npx tsx prisma/import-lavaplus-5999.ts",
+    "db:import:entourage-2599": "npx tsx prisma/import-entourage-2599.ts",
     "db:import:jr-backwoods": "npx tsx prisma/import-jr-backwoods-draft.ts",
     "db:import:jr-dutch-masters": "npx tsx prisma/import-dutch-masters-jr.ts",
     "db:publish:all-catalog": "npx tsx prisma/publish-all-catalog.ts",
