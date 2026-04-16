@@ -92,12 +92,6 @@ export default function AdminProductosPage() {
     sourceUrl: "",
   });
   const [listSearch, setListSearch] = useState("");
-  const [publishAllBusy, setPublishAllBusy] = useState(false);
-  const [publishAllMsg, setPublishAllMsg] = useState("");
-  const [importEntBusy, setImportEntBusy] = useState(false);
-  const [importEntMsg, setImportEntMsg] = useState("");
-  const [importBluntBusy, setImportBluntBusy] = useState(false);
-  const [importBluntMsg, setImportBluntMsg] = useState("");
 
   const filteredList = useMemo(() => {
     const q = normalizeSearchText(listSearch);
@@ -280,105 +274,6 @@ export default function AdminProductosPage() {
     await load();
   }
 
-  const catalogImportBusy = importEntBusy || importBluntBusy;
-
-  async function importBluntvilleOurStoryToDb() {
-    if (
-      !confirm(
-        "¿Importar Bluntville + D'ville (29 líneas del listado bluntville.com/our-story) a $25.99 en esta BD? Crea o actualiza por marca + nombre + pack.",
-      )
-    ) {
-      return;
-    }
-    setImportBluntMsg("");
-    setImportBluntBusy(true);
-    try {
-      const res = await adminFetchJson<{
-        ok?: boolean;
-        created?: number;
-        updated?: number;
-        total?: number;
-        totalProducts?: number;
-        error?: string;
-      }>("/api/admin/catalog/import-bluntville-our-story", { method: "POST" });
-      if (!res.ok) {
-        setImportBluntMsg(res.error);
-        return;
-      }
-      const d = res.data;
-      setImportBluntMsg(
-        `Bluntville/D'ville: +${d.created ?? 0} nuevos, ${d.updated ?? 0} actualizados (${d.total ?? "—"} líneas). Total en BD: ${d.totalProducts ?? "—"}. Busca «Bluntville» o «D'ville».`,
-      );
-      await load();
-    } finally {
-      setImportBluntBusy(false);
-    }
-  }
-
-  async function importEntourage2599ToDb() {
-    if (
-      !confirm(
-        "¿Importar el catálogo Entourage a $25.99 (11 productos, SKU ENTO2599-0001 … 0011)? Crea o actualiza filas en esta misma base de datos (producción si estás en la web publicada).",
-      )
-    ) {
-      return;
-    }
-    setImportEntMsg("");
-    setImportEntBusy(true);
-    try {
-      const res = await adminFetchJson<{
-        ok?: boolean;
-        imported?: number;
-        totalProducts?: number;
-        subcategories?: string[];
-        error?: string;
-      }>("/api/admin/catalog/import-entourage-2599", { method: "POST" });
-      if (!res.ok) {
-        setImportEntMsg(res.error);
-        return;
-      }
-      const d = res.data;
-      setImportEntMsg(
-        `Listo: ${d.imported ?? 0} producto(s) Entourage. Total en BD: ${d.totalProducts ?? "—"}. Categorías: ${(d.subcategories ?? []).join(", ") || "—"}. Busca «Entourage» o SKU ENTO2599-.`,
-      );
-      await load();
-    } finally {
-      setImportEntBusy(false);
-    }
-  }
-
-  async function publishAllToStorefront() {
-    if (
-      !confirm(
-        "¿Publicar todos los productos en la tienda (/tienda)? Los que estaban en borrador pasarán a visibles para clientes (las fotos pueden seguir pendientes).",
-      )
-    ) {
-      return;
-    }
-    setPublishAllMsg("");
-    setPublishAllBusy(true);
-    try {
-      const res = await adminFetchJson<{
-        ok?: boolean;
-        updated?: number;
-        totalProducts?: number;
-        wereUnpublishedBefore?: number;
-        error?: string;
-      }>("/api/admin/catalog/publish-all", { method: "POST" });
-      if (!res.ok) {
-        setPublishAllMsg(res.error);
-        return;
-      }
-      const d = res.data;
-      setPublishAllMsg(
-        `Listo: ${d.updated ?? 0} producto(s) actualizado(s). Total en BD: ${d.totalProducts ?? "—"}. Antes ocultos: ${d.wereUnpublishedBefore ?? "—"}.`,
-      );
-      await load();
-    } finally {
-      setPublishAllBusy(false);
-    }
-  }
-
   if (loading) {
     return <p className="text-[var(--muted)]">Cargando…</p>;
   }
@@ -395,46 +290,6 @@ export default function AdminProductosPage() {
         </Link>
         .
       </p>
-
-      <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-neutral-800 dark:text-neutral-100">
-        <p className="font-medium">Si en /tienda no ves los productos importados</p>
-        <p className="mt-1 text-[var(--muted)]">
-          Ejecutar <code className="rounded bg-black/10 px-1">npm run db:publish:all-catalog</code>,{" "}
-          <code className="rounded bg-black/10 px-1">npm run db:import:entourage-2599</code> o{" "}
-          <code className="rounded bg-black/10 px-1">npm run db:import:bluntville-our-story</code> en tu Mac solo
-          toca la base del <code className="rounded bg-black/10 px-1">.env</code> local. En producción
-          (Vercel) usa los botones de abajo: actúan contra la misma <code className="rounded bg-black/10 px-1">DATABASE_URL</code> que la web.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={catalogImportBusy || publishAllBusy}
-            onClick={() => void importEntourage2599ToDb()}
-            className="rounded-lg border border-amber-700/50 bg-white/80 px-4 py-2 text-sm font-semibold text-neutral-900 disabled:opacity-50 dark:bg-neutral-900/80 dark:text-neutral-100"
-          >
-            {importEntBusy ? "Importando…" : "Importar Entourage 25.99 (esta BD)"}
-          </button>
-          <button
-            type="button"
-            disabled={catalogImportBusy || publishAllBusy}
-            onClick={() => void importBluntvilleOurStoryToDb()}
-            className="rounded-lg border border-amber-700/50 bg-white/80 px-4 py-2 text-sm font-semibold text-neutral-900 disabled:opacity-50 dark:bg-neutral-900/80 dark:text-neutral-100"
-          >
-            {importBluntBusy ? "Importando…" : "Importar Bluntville / D'ville 25.99 (esta BD)"}
-          </button>
-          <button
-            type="button"
-            disabled={publishAllBusy || catalogImportBusy}
-            onClick={() => void publishAllToStorefront()}
-            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {publishAllBusy ? "Publicando…" : "Publicar todos en la tienda (esta BD)"}
-          </button>
-        </div>
-        {importEntMsg ? <p className="mt-2 text-xs text-[var(--muted)]">{importEntMsg}</p> : null}
-        {importBluntMsg ? <p className="mt-2 text-xs text-[var(--muted)]">{importBluntMsg}</p> : null}
-        {publishAllMsg ? <p className="mt-2 text-xs text-[var(--muted)]">{publishAllMsg}</p> : null}
-      </div>
 
       <form
         onSubmit={createProduct}
