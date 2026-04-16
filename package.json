@@ -27,7 +27,10 @@
     "db:import:jr-backwoods": "npx tsx prisma/import-jr-backwoods-draft.ts",
     "db:import:jr-dutch-masters": "npx tsx prisma/import-dutch-masters-jr.ts",
     "db:publish:all-catalog": "npx tsx prisma/publish-all-catalog.ts",
-    "db:import:bluntville-our-story": "npx tsx prisma/import-bluntville-our-story.ts"
+    "db:import:bluntville-our-story": "npx tsx prisma/import-bluntville-our-story.ts",
+    "db:import:flash-backwoods": "npx tsx prisma/import-flash-backwoods-offers.ts",
+    "catalog:blunt-backwoods": "npx tsx scripts/build-catalogo-blunt-backwoods.ts",
+    "db:import:bulk-catalog": "npx tsx prisma/bulk-import-catalog.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
@@ -56,6 +59,7 @@
     "postcss": "^8.5.9",
     "prisma": "^6.19.3",
     "tailwindcss": "^3.4.19",
+    "sharp": "^0.34.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

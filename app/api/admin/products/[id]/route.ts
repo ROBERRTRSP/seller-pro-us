@@ -41,6 +41,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     size?: string | null;
     packSize?: string | null;
     sourceUrl?: string | null;
+    sourceImageUrl?: string | null;
     imageStatus?: string | null;
     ageRestricted?: boolean;
     minimumAge?: number | null;
@@ -114,6 +115,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
       body.sourceUrl === null || String(body.sourceUrl).trim() === ""
         ? null
         : String(body.sourceUrl).trim();
+  }
+  if (body.sourceImageUrl !== undefined) {
+    data.sourceImageUrl =
+      body.sourceImageUrl === null || String(body.sourceImageUrl).trim() === ""
+        ? null
+        : String(body.sourceImageUrl).trim();
   }
   if (body.imageStatus !== undefined) {
     data.imageStatus =

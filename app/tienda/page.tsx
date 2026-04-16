@@ -472,9 +472,9 @@ function ProductTile({
           type="button"
           disabled={!canAdd}
           onClick={(e) => onAdd(p, e)}
-          className="mt-2 flex min-h-11 w-full items-center justify-center rounded-full border border-[#0071dc] bg-[#0071dc] py-2.5 text-xs font-bold uppercase tracking-wide text-white touch-manipulation hover:bg-[#005bb5] disabled:border-neutral-200 disabled:bg-neutral-200 disabled:text-neutral-500 sm:min-h-0 sm:py-2"
+          className="mt-2 flex min-h-11 w-full items-center justify-center rounded-full border border-[#0071dc] bg-[#0071dc] py-2.5 text-xs font-black uppercase tracking-wide text-white touch-manipulation hover:bg-[#005bb5] disabled:border-neutral-200 disabled:bg-neutral-200 disabled:text-neutral-500 sm:min-h-0 sm:py-2"
         >
-          {canAdd ? "Agregar" : "Agotado"}
+          {canAdd ? "AGREGAR" : "AGOTADO"}
         </button>
       </div>
     </article>
