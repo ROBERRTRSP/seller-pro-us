@@ -21,7 +21,8 @@
     "db:catalogo:april": "npm run db:import:april-special && npm run db:apply:verified-images",
     "db:sync:catalog": "prisma db seed",
     "db:studio": "prisma studio",
-    "catalogo:lavaplus": "npx tsx scripts/scrape-lavaplus-shop.ts"
+    "catalogo:lavaplus": "npx tsx scripts/scrape-lavaplus-shop.ts",
+    "db:import:lavaplus": "npx tsx prisma/import-lavaplus-5999.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

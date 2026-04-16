@@ -4,7 +4,7 @@ export const DEFAULT_SITE_SETTINGS = {
   siteDescription: "US pro storefront: catalog, cart, and orders. Cash on delivery — no online payment.",
   storeName: "Seller Pro US",
   storefrontNotice:
-    "No online payment: pay on delivery, cash only. No credit. Only products with a photo appear in the catalog.",
+    "No online payment: pay on delivery, cash only. No credit. All catalog items are listed; items without a verified photo show as photo pending.",
   navBrowse: "Browse",
   navCart: "Cart",
   navOrders: "My orders",
@@ -12,7 +12,7 @@ export const DEFAULT_SITE_SETTINGS = {
   heroTitle: "Get it fast — delivered to your door",
   heroSubtitle: "Your favorites, ready when you are.",
   heroBody:
-    "Only products with a photo are shown. Nothing is charged on the web: you pay on delivery, in cash. No credit.",
+    "Browse the full catalog (including items with a photo pending). Nothing is charged on the web: you pay on delivery, in cash. No credit.",
   heroCtaLabel: "Shop all",
 } as const;
 
