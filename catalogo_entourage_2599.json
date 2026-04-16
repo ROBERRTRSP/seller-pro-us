@@ -1,0 +1,112 @@
+[
+  {
+    "sku": "ENTO-0001",
+    "product_name": "Entourage Black Don Premium Cigar Double Wrapped Cigarillo",
+    "price": 25.99,
+    "image": "https://images.squarespace-cdn.com/content/v1/55b17991e4b03b6304d9431d/1458230129567-LKKK0VL3NGMHJQC19H7U/Ent+Black+Don.jpg",
+    "product_url": "https://www.entouragecigar.com/entourage/crawg8x30bxk7fhaosf0n83579nqz0",
+    "category": "cigarillo",
+    "subcategory": "Double Wrapped",
+    "brand": "Entourage"
+  },
+  {
+    "sku": "ENTO-0002",
+    "product_name": "Entourage Connoisseur Premium Cigar Double Wrapped Cigarillo",
+    "price": 25.99,
+    "image": "https://images.squarespace-cdn.com/content/v1/55b17991e4b03b6304d9431d/1458230135536-3T62QU0PMPBPEYMGJWGA/Ent+Connoisseur.jpg",
+    "product_url": "https://www.entouragecigar.com/entourage/owtsjdql8rop50jhufwzcgqr56son7",
+    "category": "cigarillo",
+    "subcategory": "Double Wrapped",
+    "brand": "Entourage"
+  },
+  {
+    "sku": "ENTO-0003",
+    "product_name": "Entourage Palma Premium Cigar Double Wrapped Cigarillo",
+    "price": 25.99,
+    "image": "https://images.squarespace-cdn.com/content/v1/55b17991e4b03b6304d9431d/1458230145880-J7GQGGWIU0XC9XHPQAR7/Ent+Palma.jpg",
+    "product_url": "https://www.entouragecigar.com/entourage/5sb1yj8j1kxnnpnwsx874a1il1kfdl",
+    "category": "cigarillo",
+    "subcategory": "Double Wrapped",
+    "brand": "Entourage"
+  },
+  {
+    "sku": "ENTO-0004",
+    "product_name": "Entourage Pink Vanilla Flavored Cigar Premium Cigarillo",
+    "price": 25.99,
+    "image": "https://images.squarespace-cdn.com/content/v1/55b17991e4b03b6304d9431d/1458230153597-Z54S3I9OJ14LWVD1EZ5Y/Ent+Pink+Berry.jpg",
+    "product_url": "https://www.entouragecigar.com/entourage/jmmnyo5346ltr77v5jy7i6ndxxhnjb",
+    "category": "cigarillo",
+    "subcategory": "Flavored Cigar",
+    "brand": "Entourage"
+  },
+  {
+    "sku": "ENTO-0005",
+    "product_name": "Entourage Vanilla Flavored Cigar Premium Cigarillo",
+    "price": 25.99,
+    "image": "https://images.squarespace-cdn.com/content/v1/55b17991e4b03b6304d9431d/1458230159016-A9DLVPNJMLKWXOX5YX5Q/Ent+Vanilla.jpg",
+    "product_url": "https://www.entouragecigar.com/entourage/ad8weul88iyjiqv7l0fckrx2nnrlpf",
+    "category": "cigarillo",
+    "subcategory": "Flavored Cigar",
+    "brand": "Entourage"
+  },
+  {
+    "sku": "ENTO-0006",
+    "product_name": "Entourage Le Privé Flavored Cigar Premium Cigarillo",
+    "price": 25.99,
+    "image": "https://images.squarespace-cdn.com/content/v1/55b17991e4b03b6304d9431d/1458230609547-PCQ9N0LP0QW1FB6HA4C0/Ent+Le+Prive.jpg",
+    "product_url": "https://www.entouragecigar.com/entourage/xhch1ymj0gxek74gqkc8f0b6xqkcwm",
+    "category": "cigarillo",
+    "subcategory": "Flavored Cigar",
+    "brand": "Entourage"
+  },
+  {
+    "sku": "ENTO-0007",
+    "product_name": "Entourage Wine Flavored Cigar Premium Cigarillo",
+    "price": 25.99,
+    "image": "https://images.squarespace-cdn.com/content/v1/55b17991e4b03b6304d9431d/1458230164220-DOF1V3ULUTU6BZRRMPPF/Ent+Wine.jpg",
+    "product_url": "https://www.entouragecigar.com/entourage/8cujdiv9ehbq821njzd8s7jpta3f2r",
+    "category": "cigarillo",
+    "subcategory": "Flavored Cigar",
+    "brand": "Entourage"
+  },
+  {
+    "sku": "ENTO-0008",
+    "product_name": "Entourage Pink Duchess Flavored Cigar Premium Cigarillo",
+    "price": 25.99,
+    "image": "https://images.squarespace-cdn.com/content/v1/55b17991e4b03b6304d9431d/1461954611309-VH04YRMG2ANOEBU6J49H/ENT25PinkDuchess_web.jpg",
+    "product_url": "https://www.entouragecigar.com/entourage/uf9o79il7l3v2q23nkhpshmahe1t6x",
+    "category": "cigarillo",
+    "subcategory": "Flavored Cigar",
+    "brand": "Entourage"
+  },
+  {
+    "sku": "ENTO-0009",
+    "product_name": "Entourage Leaf Limited Leaf Wrap Premium Flavored Cigar Cigarillo",
+    "price": 25.99,
+    "image": "https://cdn11.bigcommerce.com/s-3om7ob/products/11220/images/34426/Entourage-Leaf-Limited---Box-with-Single-Pouch__34279.1770674805.500.500.jpg?c=3",
+    "product_url": "https://www.gothamcigars.com/entourage-leaf-limited/",
+    "category": "cigarillo",
+    "subcategory": "Leaf Wrap",
+    "brand": "Entourage"
+  },
+  {
+    "sku": "ENTO-0010",
+    "product_name": "Entourage Leaf Pink Premier Leaf Wrap Premium Flavored Cigar Cigarillo",
+    "price": 25.99,
+    "image": "https://cdn11.bigcommerce.com/s-3om7ob/products/11221/images/34418/Entourage-Leaf-Pink-Premier---Box-with-Single-Pouch__99611.1770666533.500.500.jpg?c=3",
+    "product_url": "https://www.gothamcigars.com/entourage-leaf-pink-premier/",
+    "category": "cigarillo",
+    "subcategory": "Leaf Wrap",
+    "brand": "Entourage"
+  },
+  {
+    "sku": "ENTO-0011",
+    "product_name": "Entourage Leaf DRK Leaf Wrap Premium Flavored Cigar Cigarillo",
+    "price": 25.99,
+    "image": "https://cdn11.bigcommerce.com/s-3om7ob/products/11219/images/34424/Entourage-Leaf-DRK---Box-with-Single-Pouch__29722.1770731167.500.500.jpg?c=3",
+    "product_url": "https://www.gothamcigars.com/entourage-leaf-drk/",
+    "category": "cigarillo",
+    "subcategory": "Leaf Wrap",
+    "brand": "Entourage"
+  }
+]
