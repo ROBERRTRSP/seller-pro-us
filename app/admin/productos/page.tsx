@@ -92,6 +92,8 @@ export default function AdminProductosPage() {
     sourceUrl: "",
   });
   const [listSearch, setListSearch] = useState("");
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
 
   const filteredList = useMemo(() => {
     const q = normalizeSearchText(listSearch);
@@ -274,6 +276,69 @@ export default function AdminProductosPage() {
     await load();
   }
 
+  async function syncGothamJsonToThisDatabase() {
+    if (
+      !confirm(
+        "¿Importar catalogo_gotham_2599.json en esta base de datos? Los productos aparecerán en /tienda para clientes. Puede tardar 1–2 minutos.",
+      )
+    ) {
+      return;
+    }
+    setSyncMsg("");
+    setSyncBusy(true);
+    try {
+      const res = await adminFetchJson<{
+        ok?: boolean;
+        imported?: number;
+        totalProducts?: number;
+        error?: string;
+      }>("/api/admin/catalog/import-gotham-2599", { method: "POST" });
+      if (!res.ok) {
+        setSyncMsg(res.error);
+        return;
+      }
+      const d = res.data;
+      setSyncMsg(
+        `Gotham: ${d.imported ?? 0} productos. Total en BD: ${d.totalProducts ?? "—"}. Recarga /tienda para ver el catálogo.`,
+      );
+      await load();
+    } finally {
+      setSyncBusy(false);
+    }
+  }
+
+  async function publishAllProductsToStorefront() {
+    if (
+      !confirm(
+        "¿Publicar todos los productos en la tienda (/tienda)? Los que estaban ocultos pasarán a visibles.",
+      )
+    ) {
+      return;
+    }
+    setSyncMsg("");
+    setSyncBusy(true);
+    try {
+      const res = await adminFetchJson<{
+        ok?: boolean;
+        updated?: number;
+        totalProducts?: number;
+        wereUnpublishedBefore?: number;
+        error?: string;
+      }>("/api/admin/catalog/publish-all", { method: "POST" });
+      if (!res.ok) {
+        setSyncMsg(res.error);
+        return;
+      }
+      const d = res.data;
+      setSyncMsg(
+        `Publicados: ${d.updated ?? 0} filas. Total: ${d.totalProducts ?? "—"}. Antes ocultos: ${d.wereUnpublishedBefore ?? "—"}.`,
+      );
+      await load();
+    } finally {
+      setSyncBusy(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-[var(--muted)]">Cargando…</p>;
   }
@@ -290,6 +355,29 @@ export default function AdminProductosPage() {
         </Link>
         .
       </p>
+
+      <div className="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        <span className="text-xs font-medium text-[var(--muted)]">Catálogo en la web (esta BD)</span>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={syncBusy}
+            onClick={() => void syncGothamJsonToThisDatabase()}
+            className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            {syncBusy ? "Trabajando…" : "Importar Gotham (JSON → tienda)"}
+          </button>
+          <button
+            type="button"
+            disabled={syncBusy}
+            onClick={() => void publishAllProductsToStorefront()}
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--muted)] disabled:opacity-50"
+          >
+            Publicar todos en /tienda
+          </button>
+        </div>
+        {syncMsg ? <p className="w-full text-xs text-[var(--muted)]">{syncMsg}</p> : null}
+      </div>
 
       <form
         onSubmit={createProduct}

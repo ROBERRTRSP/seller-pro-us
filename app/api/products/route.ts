@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
 import { productCatalogImageVisible } from "@/lib/product-image";
 
+/** Catálogos muy grandes (import masivo) pueden superar el límite por defecto en serverless. */
+export const maxDuration = 120;
+
 /** Catálogo completo: todos los productos en BD, con o sin foto publicada (`imagePending`). */
 export async function GET() {
   const gate = await requireRole(Role.CLIENT);

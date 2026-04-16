@@ -64,7 +64,8 @@ function badgeClass(badge: string | null): string {
   return "bg-neutral-700 text-white";
 }
 
-const CATALOG_FETCH_MS = 25_000;
+/** Catálogos grandes (p. ej. import Gotham) pueden superar 25s en JSON + red. */
+const CATALOG_FETCH_MS = 120_000;
 
 export default function TiendaPage() {
   const site = useSiteSettings();
