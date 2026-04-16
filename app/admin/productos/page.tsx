@@ -94,6 +94,8 @@ export default function AdminProductosPage() {
   const [listSearch, setListSearch] = useState("");
   const [publishAllBusy, setPublishAllBusy] = useState(false);
   const [publishAllMsg, setPublishAllMsg] = useState("");
+  const [importEntBusy, setImportEntBusy] = useState(false);
+  const [importEntMsg, setImportEntMsg] = useState("");
 
   const filteredList = useMemo(() => {
     const q = normalizeSearchText(listSearch);
@@ -276,6 +278,38 @@ export default function AdminProductosPage() {
     await load();
   }
 
+  async function importEntourage2599ToDb() {
+    if (
+      !confirm(
+        "¿Importar el catálogo Entourage a $25.99 (11 productos, SKU ENTO2599-0001 … 0011)? Crea o actualiza filas en esta misma base de datos (producción si estás en la web publicada).",
+      )
+    ) {
+      return;
+    }
+    setImportEntMsg("");
+    setImportEntBusy(true);
+    try {
+      const res = await adminFetchJson<{
+        ok?: boolean;
+        imported?: number;
+        totalProducts?: number;
+        subcategories?: string[];
+        error?: string;
+      }>("/api/admin/catalog/import-entourage-2599", { method: "POST" });
+      if (!res.ok) {
+        setImportEntMsg(res.error);
+        return;
+      }
+      const d = res.data;
+      setImportEntMsg(
+        `Listo: ${d.imported ?? 0} producto(s) Entourage. Total en BD: ${d.totalProducts ?? "—"}. Categorías: ${(d.subcategories ?? []).join(", ") || "—"}. Busca «Entourage» o SKU ENTO2599-.`,
+      );
+      await load();
+    } finally {
+      setImportEntBusy(false);
+    }
+  }
+
   async function publishAllToStorefront() {
     if (
       !confirm(
@@ -328,18 +362,30 @@ export default function AdminProductosPage() {
       <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-neutral-800 dark:text-neutral-100">
         <p className="font-medium">Si en /tienda no ves los productos importados</p>
         <p className="mt-1 text-[var(--muted)]">
-          Ejecutar <code className="rounded bg-black/10 px-1">npm run db:publish:all-catalog</code> en tu
-          Mac solo actualiza la base de datos del <code className="rounded bg-black/10 px-1">.env</code>{" "}
-          local. En producción (p. ej. Vercel) hay que publicar contra la misma BD que usa la web.
+          Ejecutar <code className="rounded bg-black/10 px-1">npm run db:publish:all-catalog</code> o{" "}
+          <code className="rounded bg-black/10 px-1">npm run db:import:entourage-2599</code> en tu Mac solo
+          toca la base del <code className="rounded bg-black/10 px-1">.env</code> local. En producción
+          (Vercel) usa los botones de abajo: actúan contra la misma <code className="rounded bg-black/10 px-1">DATABASE_URL</code> que la web.
         </p>
-        <button
-          type="button"
-          disabled={publishAllBusy}
-          onClick={() => void publishAllToStorefront()}
-          className="mt-3 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {publishAllBusy ? "Publicando…" : "Publicar todos en la tienda (esta BD)"}
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={importEntBusy || publishAllBusy}
+            onClick={() => void importEntourage2599ToDb()}
+            className="rounded-lg border border-amber-700/50 bg-white/80 px-4 py-2 text-sm font-semibold text-neutral-900 disabled:opacity-50 dark:bg-neutral-900/80 dark:text-neutral-100"
+          >
+            {importEntBusy ? "Importando…" : "Importar Entourage 25.99 (esta BD)"}
+          </button>
+          <button
+            type="button"
+            disabled={publishAllBusy || importEntBusy}
+            onClick={() => void publishAllToStorefront()}
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {publishAllBusy ? "Publicando…" : "Publicar todos en la tienda (esta BD)"}
+          </button>
+        </div>
+        {importEntMsg ? <p className="mt-2 text-xs text-[var(--muted)]">{importEntMsg}</p> : null}
         {publishAllMsg ? <p className="mt-2 text-xs text-[var(--muted)]">{publishAllMsg}</p> : null}
       </div>
 
