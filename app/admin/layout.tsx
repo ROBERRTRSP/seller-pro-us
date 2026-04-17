@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { getImpersonationContext, getSessionFromCookie } from "@/lib/auth";
+
+/** Lee cookies/sesión: no puede prerender estático en build (Vercel). */
+export const dynamic = "force-dynamic";
 import { ExitImpersonationButton } from "@/components/ExitImpersonationButton";
 import { LogoutButton } from "@/components/LogoutButton";
 import { SellerProMark } from "@/components/SellerProLogo";

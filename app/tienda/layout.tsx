@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
+
+/** Sesión + cookies en layout: debe ser dinámico. */
+export const dynamic = "force-dynamic";
 import { TiendaImpersonationBar } from "@/components/TiendaImpersonationBar";
 import { LogoutButton } from "@/components/LogoutButton";
 import { SellerProLogo } from "@/components/SellerProLogo";
