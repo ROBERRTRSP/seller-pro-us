@@ -143,16 +143,26 @@ export default async function AdminHomePage() {
   );
   } catch (e) {
     console.error("[admin/page] prisma", e);
+    const hint =
+      process.env.NODE_ENV === "development"
+        ? e instanceof Error
+          ? e.message
+          : String(e)
+        : null;
     return (
       <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-6">
         <h1 className="text-xl font-semibold text-red-100">No se pudo cargar el panel</h1>
         <p className="mt-2 text-sm text-red-100/85">
-          No hay conexión con la base de datos o la configuración falló. En local: arranca Postgres (
-          <code className="rounded bg-black/30 px-1">docker compose up -d</code>) y revisa{" "}
-          <code className="rounded bg-black/30 px-1">DATABASE_URL</code> en{" "}
-          <code className="rounded bg-black/30 px-1">.env</code>. En producción (Vercel): misma variable
-          apuntando a Neon.
+          No hay conexión con la base de datos, faltan migraciones en la BD de producción, o la
+          configuración falló. En Vercel: define <code className="rounded bg-black/30 px-1">DATABASE_URL</code>{" "}
+          (Neon) también en <strong>Build</strong>, y cada despliegue aplica migraciones automáticamente (
+          <code className="rounded bg-black/30 px-1">npm run build</code> incluye{" "}
+          <code className="rounded bg-black/30 px-1">prisma migrate deploy</code>). En local: Postgres y{" "}
+          <code className="rounded bg-black/30 px-1">.env</code>.
         </p>
+        {hint ? (
+          <p className="mt-3 rounded bg-black/30 px-3 py-2 font-mono text-xs text-red-100/90">{hint}</p>
+        ) : null}
       </div>
     );
   }
