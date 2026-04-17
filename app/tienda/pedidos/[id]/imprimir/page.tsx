@@ -23,8 +23,6 @@ export default async function ClienteImprimirPedidoPage({ params }: Props) {
           email: true,
           phone: true,
           address: true,
-          businessLicense: true,
-          tobaccoLicense: true,
         },
       },
       items: { include: { product: { select: { name: true } } } },
@@ -74,14 +72,6 @@ export default async function ClienteImprimirPedidoPage({ params }: Props) {
           <div>
             <dt className="text-[var(--muted)] print:text-neutral-600">Dirección de entrega</dt>
             <dd className="mt-0.5 whitespace-pre-wrap print:text-black">{contact.address ?? "—"}</dd>
-          </div>
-          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-            <dt className="text-[var(--muted)] print:text-neutral-600">Business license</dt>
-            <dd className="font-mono text-xs print:text-black">{contact.businessLicense ?? "—"}</dd>
-          </div>
-          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-            <dt className="text-[var(--muted)] print:text-neutral-600">Tobacco license</dt>
-            <dd className="font-mono text-xs print:text-black">{contact.tobaccoLicense ?? "—"}</dd>
           </div>
         </dl>
       </section>

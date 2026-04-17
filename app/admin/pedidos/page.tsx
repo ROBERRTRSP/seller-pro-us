@@ -287,18 +287,6 @@ export default function AdminPedidosPage() {
                           {c.address ?? "—"}
                         </dd>
                       </div>
-                      <div className="flex flex-wrap gap-x-2">
-                        <dt className="text-[var(--muted)]">Business license</dt>
-                        <dd className="min-w-0 break-words font-mono text-xs text-[var(--text)]">
-                          {c.businessLicense ?? "—"}
-                        </dd>
-                      </div>
-                      <div className="flex flex-wrap gap-x-2">
-                        <dt className="text-[var(--muted)]">Tobacco license</dt>
-                        <dd className="min-w-0 break-words font-mono text-xs text-[var(--text)]">
-                          {c.tobaccoLicense ?? "—"}
-                        </dd>
-                      </div>
                     </dl>
                   );
                 })()}
