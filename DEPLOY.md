@@ -2,10 +2,18 @@
 
 ## 1. Base de datos (Neon)
 
-1. Crea un proyecto en [Neon](https://neon.tech) y copia el **connection string** (PostgreSQL).
+1. Crea un proyecto en [Neon](https://neon.tech) y copia las URLs de PostgreSQL ([guía Prisma + Neon](https://neon.tech/docs/guides/prisma)).
 2. En Vercel → tu proyecto → **Settings → Environment Variables**:
-   - `DATABASE_URL` = URL de Neon (con `sslmode=require` si Neon lo indica).
+   - **`DATABASE_URL`** = URL **pooled** (serverless / `-pooler`), con `sslmode=require` si aplica.
+   - **`DIRECT_URL`** = URL **direct** (sin pooler), para `prisma migrate deploy` en el build. Si falta o es solo pooler, el deploy puede fallar con **P1002** (timeout).
+   - Opcional en la query string: `connect_timeout=60` para dar tiempo a que arranque el compute de Neon.
 3. El build ejecuta `prisma migrate deploy`: aplica las migraciones en `prisma/migrations/`.
+
+### Si el build falla con `P1002`
+
+- Asegura **`DIRECT_URL`** en Vercel (Neon → **Connection details** → pestaña **direct**).
+- Revisa que **`DATABASE_URL`** y **`DIRECT_URL`** estén en **Production** (y Preview si despliegas previews).
+- Añade `connect_timeout=60` a ambas URLs si sigue habiendo timeout.
 
 Datos demo (usuarios y productos), **una vez** desde tu máquina con la URL de Neon:
 
@@ -21,11 +29,12 @@ No ejecutes `db:seed` en cada deploy de Vercel salvo que quieras resetear datos.
 
 | Variable | Obligatoria | Descripción |
 |----------|-------------|-------------|
-| `DATABASE_URL` | Sí | Postgres (Neon) |
+| `DATABASE_URL` | Sí | Postgres Neon **pooled** (runtime) |
+| `DIRECT_URL` | Sí en Vercel | Neon **direct** (migraciones en build; en local puede igualar `DATABASE_URL`) |
 | `AUTH_SECRET` | Sí | Mínimo 16 caracteres; mejor 32+ aleatorios |
 | `BLOB_READ_WRITE_TOKEN` | Recomendada en prod | Sin ella, las subidas intentan escribir en disco (no válido en serverless) |
 
-Opcional: Neon también ofrece URL **direct** para migraciones con pooler; si Prisma se queja, consulta la doc de Neon + Prisma (`directUrl`).
+El esquema Prisma usa `directUrl` → variable **`DIRECT_URL`** (ver tabla arriba).
 
 ## 3. Almacenamiento de imágenes (Vercel Blob)
 
