@@ -3,11 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  /** Runtime (Neon: pooled). Migraciones usan `directUrl` si existe. */
-  url       = env("DATABASE_URL")
-  /** Migraciones / introspection (Neon: conexión “direct”, sin pooler). En local puede ser igual que DATABASE_URL. */
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {

@@ -2,18 +2,17 @@
 
 ## 1. Base de datos (Neon)
 
-1. Crea un proyecto en [Neon](https://neon.tech) y copia las URLs de PostgreSQL ([guía Prisma + Neon](https://neon.tech/docs/guides/prisma)).
-2. En Vercel → tu proyecto → **Settings → Environment Variables**:
-   - **`DATABASE_URL`** = URL **pooled** (serverless / `-pooler`), con `sslmode=require` si aplica.
-   - **`DIRECT_URL`** = URL **direct** (sin pooler), para `prisma migrate deploy` en el build. Si falta o es solo pooler, el deploy puede fallar con **P1002** (timeout).
-   - Opcional en la query string: `connect_timeout=60` para dar tiempo a que arranque el compute de Neon.
+1. Crea un proyecto en [Neon](https://neon.tech) y copia la URL de Postgres ([Neon + Prisma](https://neon.tech/docs/guides/prisma)).
+2. En Vercel → **Settings → Environment Variables** → **`DATABASE_URL`** (Production y Preview si aplica).
+   - Incluye `sslmode=require` si Neon lo indica.
+   - Para evitar timeouts en el build (`prisma migrate deploy`), añade a la URL cosas como **`connect_timeout=60`** (y si hace falta **`pool_timeout=60`**) en la cadena de consulta.
 3. El build ejecuta `prisma migrate deploy`: aplica las migraciones en `prisma/migrations/`.
 
-### Si el build falla con `P1002`
+### Si el build falla con `P1002` (timeout)
 
-- Asegura **`DIRECT_URL`** en Vercel (Neon → **Connection details** → pestaña **direct**).
-- Revisa que **`DATABASE_URL`** y **`DIRECT_URL`** estén en **Production** (y Preview si despliegas previews).
-- Añade `connect_timeout=60` a ambas URLs si sigue habiendo timeout.
+- Añade **`connect_timeout=60`** (o más) a **`DATABASE_URL`** en Vercel.
+- En Neon, despierta la base antes del deploy (abre el dashboard o ejecuta una query), o revisa que el proyecto no esté suspendido por límites del plan.
+- Opcional avanzado: URL **direct** solo para migraciones desde tu PC (`migrate deploy`), o una segunda variable si más adelante configuras `directUrl` en Prisma.
 
 Datos demo (usuarios y productos), **una vez** desde tu máquina con la URL de Neon:
 
@@ -29,12 +28,9 @@ No ejecutes `db:seed` en cada deploy de Vercel salvo que quieras resetear datos.
 
 | Variable | Obligatoria | Descripción |
 |----------|-------------|-------------|
-| `DATABASE_URL` | Sí | Postgres Neon **pooled** (runtime) |
-| `DIRECT_URL` | Sí en Vercel | Neon **direct** (migraciones en build; en local puede igualar `DATABASE_URL`) |
+| `DATABASE_URL` | Sí | Postgres (Neon); en la URL puedes sumar `connect_timeout=60` para builds |
 | `AUTH_SECRET` | Sí | Mínimo 16 caracteres; mejor 32+ aleatorios |
 | `BLOB_READ_WRITE_TOKEN` | Recomendada en prod | Sin ella, las subidas intentan escribir en disco (no válido en serverless) |
-
-El esquema Prisma usa `directUrl` → variable **`DIRECT_URL`** (ver tabla arriba).
 
 ## 3. Almacenamiento de imágenes (Vercel Blob)
 
