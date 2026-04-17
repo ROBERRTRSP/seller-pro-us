@@ -62,6 +62,8 @@ model Product {
   /** EAN-12 / UPC style code for scanning. */
   barcode              String?     @unique
   priceCents           Int
+  /** Costo de compra (centavos). Solo panel admin; no se muestra en la tienda. */
+  costCents            Int?
   /** Strikethrough “Was” price in catalog; must be greater than priceCents when set. */
   compareAtPriceCents  Int?
   /** Promo label e.g. Rollback, Clearance, Reduced price. */

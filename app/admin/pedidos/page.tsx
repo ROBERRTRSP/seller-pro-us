@@ -35,6 +35,68 @@ const STATUSES = ["PENDIENTE", "ENVIADO", "COMPLETADO", "CANCELADO"] as const;
 const FILTER_ALL = "ALL" as const;
 const FILTERS = [FILTER_ALL, ...STATUSES] as const;
 
+/** Colores coherentes por estado: tarjetas, filtros y desplegable. */
+function getOrderStatusUi(status: string) {
+  switch (status) {
+    case "PENDIENTE":
+      return {
+        card: "border-amber-500/45 bg-amber-950/25 shadow-[inset_4px_0_0_0_rgb(245_158_11)]",
+        pillActive: "bg-amber-600 text-white shadow-sm",
+        pillInactive:
+          "border border-amber-500/45 bg-amber-950/15 text-amber-100/95 hover:bg-amber-950/35",
+        select:
+          "border-amber-500/55 text-amber-100/95 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/35",
+      };
+    case "ENVIADO":
+      return {
+        card: "border-sky-500/45 bg-sky-950/20 shadow-[inset_4px_0_0_0_rgb(56_189_248)]",
+        pillActive: "bg-sky-600 text-white shadow-sm",
+        pillInactive: "border border-sky-500/45 bg-sky-950/15 text-sky-100/95 hover:bg-sky-950/35",
+        select:
+          "border-sky-500/55 text-sky-100/95 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/35",
+      };
+    case "COMPLETADO":
+      return {
+        card: "border-emerald-500/45 bg-emerald-950/20 shadow-[inset_4px_0_0_0_rgb(52_211_153)]",
+        pillActive: "bg-emerald-600 text-white shadow-sm",
+        pillInactive:
+          "border border-emerald-500/45 bg-emerald-950/15 text-emerald-100/95 hover:bg-emerald-950/35",
+        select:
+          "border-emerald-500/55 text-emerald-100/95 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35",
+      };
+    case "CANCELADO":
+      return {
+        card: "border-rose-500/45 bg-rose-950/25 shadow-[inset_4px_0_0_0_rgb(251_113_133)]",
+        pillActive: "bg-rose-600 text-white shadow-sm",
+        pillInactive: "border border-rose-500/45 bg-rose-950/15 text-rose-100/95 hover:bg-rose-950/35",
+        select:
+          "border-rose-500/55 text-rose-100/95 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-500/35",
+      };
+    default:
+      return {
+        card: "border-[var(--border)] bg-[var(--surface)]",
+        pillActive: "bg-[var(--accent)] text-white shadow-sm",
+        pillInactive:
+          "border border-[var(--border)] bg-[var(--bg)]/30 text-[var(--muted)] hover:bg-[var(--bg)] hover:text-[var(--text)]",
+        select:
+          "border-[var(--border)] text-[var(--text)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/25",
+      };
+  }
+}
+
+function filterChipClass(filterKey: (typeof FILTERS)[number], selected: boolean): string {
+  const base = "rounded-full px-3 py-1 text-sm transition-colors";
+  if (filterKey === FILTER_ALL) {
+    return `${base} ${
+      selected
+        ? "bg-zinc-600 text-white shadow-sm"
+        : "border border-zinc-500/45 bg-zinc-950/20 text-zinc-300 hover:bg-zinc-900/55 hover:text-zinc-100"
+    }`;
+  }
+  const ui = getOrderStatusUi(filterKey);
+  return `${base} ${selected ? ui.pillActive : ui.pillInactive}`;
+}
+
 export default function AdminPedidosPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -252,11 +314,7 @@ export default function AdminPedidosPage() {
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`rounded-full px-3 py-1 text-sm ${
-              filter === f
-                ? "bg-[var(--accent)] text-white"
-                : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)]"
-            }`}
+            className={filterChipClass(f, filter === f)}
           >
             {f === FILTER_ALL ? "Todos" : formatOrderStatus(f)}
           </button>
@@ -267,7 +325,7 @@ export default function AdminPedidosPage() {
         {filtered.map((o) => (
           <li
             key={o.id}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
+            className={`rounded-xl border p-5 ${getOrderStatusUi(o.status).card}`}
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -311,7 +369,7 @@ export default function AdminPedidosPage() {
                 <select
                   value={o.status}
                   onChange={(e) => setStatus(o.id, e.target.value)}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm"
+                  className={`rounded-lg bg-[var(--bg)] px-2 py-1 text-sm ${getOrderStatusUi(o.status).select}`}
                 >
                   {STATUSES.map((s) => (
                     <option key={s} value={s}>

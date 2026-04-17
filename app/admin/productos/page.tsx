@@ -16,6 +16,8 @@ type Product = {
   name: string;
   description: string;
   priceCents: number;
+  /** Costo de compra; solo admin. */
+  costCents?: number | null;
   compareAtPriceCents: number | null;
   promoBadge: string | null;
   category: CategoryOption | null;
@@ -36,6 +38,9 @@ type Product = {
 
 const BADGE_PRESETS = ["", "Rollback", "Clearance", "Reduced price"];
 
+/** Precio de venta sugerido = precio de compra + este margen (15 % sobre la compra). */
+const SUGGESTED_MARKUP_ON_COST = 0.15;
+
 function dollarsFromCents(cents: number | null) {
   if (cents == null || cents <= 0) return "";
   return (cents / 100).toFixed(2);
@@ -47,6 +52,24 @@ function parseDollarsToCents(s: string): number | null {
   const n = Math.round(parseFloat(t) * 100);
   if (!Number.isFinite(n) || n <= 0) return null;
   return n;
+}
+
+/** Precio de compra: permite 0; vacío → null (solo edición). */
+function dollarsFromPurchaseCents(cents: number | null | undefined) {
+  if (cents == null) return "";
+  return (cents / 100).toFixed(2);
+}
+
+function parseCostDollarsToCents(s: string): number | null {
+  const t = s.trim().replace(",", ".");
+  if (!t) return null;
+  const n = Math.round(parseFloat(t) * 100);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
+function suggestedSaleCentsFromCostCents(costCents: number): number {
+  return Math.round(costCents * (1 + SUGGESTED_MARKUP_ON_COST));
 }
 
 function normalizeSearchText(value: string) {
@@ -69,6 +92,7 @@ export default function AdminProductosPage() {
     name: "",
     description: "",
     priceDollars: "",
+    costDollars: "",
     compareAtDollars: "",
     promoBadge: "",
     categoryId: "",
@@ -81,6 +105,7 @@ export default function AdminProductosPage() {
     name: "",
     description: "",
     priceDollars: "",
+    costDollars: "",
     compareAtDollars: "",
     promoBadge: "",
     categoryId: "",
@@ -94,6 +119,20 @@ export default function AdminProductosPage() {
   const [listSearch, setListSearch] = useState("");
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+
+  const suggestedNewProductSale = useMemo(() => {
+    const c = parseCostDollarsToCents(form.costDollars);
+    if (c == null) return null;
+    const saleCents = suggestedSaleCentsFromCostCents(c);
+    return { saleCents, saleDollars: (saleCents / 100).toFixed(2) };
+  }, [form.costDollars]);
+
+  const suggestedEditSale = useMemo(() => {
+    const c = parseCostDollarsToCents(editForm.costDollars);
+    if (c == null) return null;
+    const saleCents = suggestedSaleCentsFromCostCents(c);
+    return { saleCents, saleDollars: (saleCents / 100).toFixed(2) };
+  }, [editForm.costDollars]);
 
   const filteredList = useMemo(() => {
     const q = normalizeSearchText(listSearch);
@@ -147,6 +186,7 @@ export default function AdminProductosPage() {
       name: p.name,
       description: p.description,
       priceDollars: dollarsFromCents(p.priceCents),
+      costDollars: dollarsFromPurchaseCents(p.costCents ?? null),
       compareAtDollars: dollarsFromCents(p.compareAtPriceCents),
       promoBadge: p.promoBadge ?? "",
       categoryId: p.category?.id ?? "",
@@ -172,6 +212,18 @@ export default function AdminProductosPage() {
       return;
     }
     const priceCents = Math.round(parseFloat(editForm.priceDollars.replace(",", ".")) * 100) || 0;
+    const costTrim = editForm.costDollars.trim();
+    let costCents: number | null;
+    if (!costTrim) {
+      costCents = null;
+    } else {
+      const c = Math.round(parseFloat(costTrim.replace(",", ".")) * 100);
+      if (!Number.isFinite(c) || c < 0) {
+        setError("El precio de compra no es válido.");
+        return;
+      }
+      costCents = c;
+    }
     const compareAtPriceCents = parseDollarsToCents(editForm.compareAtDollars);
     if (compareAtPriceCents != null && compareAtPriceCents <= priceCents) {
       setError("El precio «antes» debe ser mayor que el precio actual.");
@@ -189,6 +241,7 @@ export default function AdminProductosPage() {
           name: editForm.name,
           description: editForm.description,
           priceCents,
+          costCents,
           compareAtPriceCents,
           promoBadge: editForm.promoBadge.trim() || null,
           categoryId: editForm.categoryId.trim() || null,
@@ -222,6 +275,16 @@ export default function AdminProductosPage() {
       return;
     }
     const priceCents = Math.round(parseFloat(form.priceDollars.replace(",", ".")) * 100) || 0;
+    const costTrim = form.costDollars.trim();
+    if (!costTrim) {
+      setError("Indica el precio de compra.");
+      return;
+    }
+    const costCents = Math.round(parseFloat(costTrim.replace(",", ".")) * 100);
+    if (!Number.isFinite(costCents) || costCents < 0) {
+      setError("El precio de compra no es válido.");
+      return;
+    }
     const compareAtPriceCents = parseDollarsToCents(form.compareAtDollars);
     if (compareAtPriceCents != null && compareAtPriceCents <= priceCents) {
       setError("El precio «antes» debe ser mayor que el precio actual.");
@@ -237,6 +300,7 @@ export default function AdminProductosPage() {
           name: form.name,
           description: form.description,
           priceCents,
+          costCents,
           compareAtPriceCents,
           promoBadge: form.promoBadge.trim() || null,
           categoryId: form.categoryId.trim() || null,
@@ -255,6 +319,7 @@ export default function AdminProductosPage() {
         name: "",
         description: "",
         priceDollars: "",
+        costDollars: "",
         compareAtDollars: "",
         promoBadge: "",
         categoryId: "",
@@ -476,43 +541,75 @@ export default function AdminProductosPage() {
             Foto subida: puedes guardar sin marcar la casilla anterior.
           </p>
         ) : null}
-        <div className="flex flex-wrap gap-3">
-          <input
-            required
-            type="text"
-            inputMode="decimal"
-            placeholder="Precio actual ($)"
-            value={form.priceDollars}
-            onChange={(e) => setForm((f) => ({ ...f, priceDollars: e.target.value }))}
-            className="w-36 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
-          />
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="Precio «antes» ($), opcional"
-            value={form.compareAtDollars}
-            onChange={(e) => setForm((f) => ({ ...f, compareAtDollars: e.target.value }))}
-            className="w-44 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
-          />
-          <div className="text-xs text-[var(--muted)] sm:self-end">
-            <p>Existencias (uds.)</p>
-            <label className="mt-1 flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={form.unlimitedStock}
-                onChange={(e) => setForm((f) => ({ ...f, unlimitedStock: e.target.checked }))}
-              />
-              Stock ilimitado
-            </label>
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-3">
             <input
-              type="number"
-              min={0}
-              value={form.stock}
-              onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-              disabled={form.unlimitedStock}
-              className="mt-1 block w-28 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]"
+              required
+              type="text"
+              inputMode="decimal"
+              placeholder="Precio de compra ($)"
+              aria-label="Precio de compra en dólares"
+              value={form.costDollars}
+              onChange={(e) => setForm((f) => ({ ...f, costDollars: e.target.value }))}
+              className="w-40 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
             />
+            <input
+              required
+              type="text"
+              inputMode="decimal"
+              placeholder="Precio actual ($)"
+              value={form.priceDollars}
+              onChange={(e) => setForm((f) => ({ ...f, priceDollars: e.target.value }))}
+              className="w-36 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+            />
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Precio «antes» ($), opcional"
+              value={form.compareAtDollars}
+              onChange={(e) => setForm((f) => ({ ...f, compareAtDollars: e.target.value }))}
+              className="w-44 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+            />
+            <div className="text-xs text-[var(--muted)] sm:self-end">
+              <p>Existencias (uds.)</p>
+              <label className="mt-1 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.unlimitedStock}
+                  onChange={(e) => setForm((f) => ({ ...f, unlimitedStock: e.target.checked }))}
+                />
+                Stock ilimitado
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={form.stock}
+                onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+                disabled={form.unlimitedStock}
+                className="mt-1 block w-28 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]"
+              />
+            </div>
           </div>
+          {suggestedNewProductSale ? (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--muted)]">
+              <span>
+                Venta sugerida (+15% sobre compra):{" "}
+                <strong className="font-medium text-[var(--text)]">
+                  {formatCents(suggestedNewProductSale.saleCents)}
+                </strong>
+              </span>
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() =>
+                  setForm((f) => ({ ...f, priceDollars: suggestedNewProductSale.saleDollars }))
+                }
+                className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)] hover:underline disabled:opacity-50"
+              >
+                Usar como precio actual
+              </button>
+            </p>
+          ) : null}
         </div>
         {error && !editingId ? <p className="text-sm text-red-400">{error}</p> : null}
         <button
@@ -586,6 +683,7 @@ export default function AdminProductosPage() {
                   <p className="font-medium">{p.name}</p>
                   <p className="text-xs text-[var(--muted)]">
                     {formatCents(p.priceCents)}
+                    {p.costCents != null ? ` · Compra ${formatCents(p.costCents)}` : ""}
                     {p.compareAtPriceCents != null && p.compareAtPriceCents > p.priceCents
                       ? ` · Antes ${formatCents(p.compareAtPriceCents)}`
                       : ""}
@@ -762,44 +860,78 @@ export default function AdminProductosPage() {
                     </a>
                   </p>
                 ) : null}
-                <div className="flex flex-wrap gap-3">
-                  <input
-                    required
-                    type="text"
-                    inputMode="decimal"
-                    value={editForm.priceDollars}
-                    onChange={(e) => setEditForm((f) => ({ ...f, priceDollars: e.target.value }))}
-                    className="w-36 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
-                  />
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="Precio «antes» ($)"
-                    value={editForm.compareAtDollars}
-                    onChange={(e) => setEditForm((f) => ({ ...f, compareAtDollars: e.target.value }))}
-                    className="w-44 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
-                  />
-                  <div className="text-xs text-[var(--muted)] sm:self-end">
-                    <p>Existencias (uds.)</p>
-                    <label className="mt-1 flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={editForm.unlimitedStock}
-                        onChange={(e) =>
-                          setEditForm((f) => ({ ...f, unlimitedStock: e.target.checked }))
-                        }
-                      />
-                      Stock ilimitado
-                    </label>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-3">
                     <input
-                      type="number"
-                      min={0}
-                      value={editForm.stock}
-                      onChange={(e) => setEditForm((f) => ({ ...f, stock: e.target.value }))}
-                      disabled={editForm.unlimitedStock}
-                      className="mt-1 block w-28 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Precio de compra ($), opcional"
+                      aria-label="Precio de compra en dólares"
+                      value={editForm.costDollars}
+                      onChange={(e) => setEditForm((f) => ({ ...f, costDollars: e.target.value }))}
+                      className="w-44 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
                     />
+                    <input
+                      required
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Precio actual ($)"
+                      value={editForm.priceDollars}
+                      onChange={(e) => setEditForm((f) => ({ ...f, priceDollars: e.target.value }))}
+                      className="w-36 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+                    />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Precio «antes» ($)"
+                      value={editForm.compareAtDollars}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, compareAtDollars: e.target.value }))
+                      }
+                      className="w-44 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+                    />
+                    <div className="text-xs text-[var(--muted)] sm:self-end">
+                      <p>Existencias (uds.)</p>
+                      <label className="mt-1 flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={editForm.unlimitedStock}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, unlimitedStock: e.target.checked }))
+                          }
+                        />
+                        Stock ilimitado
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={editForm.stock}
+                        onChange={(e) => setEditForm((f) => ({ ...f, stock: e.target.value }))}
+                        disabled={editForm.unlimitedStock}
+                        className="mt-1 block w-28 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]"
+                      />
+                    </div>
                   </div>
+                  {suggestedEditSale ? (
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--muted)]">
+                      <span>
+                        Venta sugerida (+15% sobre compra):{" "}
+                        <strong className="font-medium text-[var(--text)]">
+                          {formatCents(suggestedEditSale.saleCents)}
+                        </strong>
+                      </span>
+                      <button
+                        type="button"
+                        disabled={editSaving}
+                        onClick={() =>
+                          setEditForm((f) => ({ ...f, priceDollars: suggestedEditSale.saleDollars }))
+                        }
+                        className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)] hover:underline disabled:opacity-50"
+                      >
+                        Usar como precio actual
+                      </button>
+                    </p>
+                  ) : null}
                 </div>
                 {error && editingId ? <p className="text-sm text-red-400">{error}</p> : null}
                 <button

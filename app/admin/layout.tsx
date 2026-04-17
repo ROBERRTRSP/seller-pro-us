@@ -4,6 +4,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { SellerProMark } from "@/components/SellerProLogo";
 import { getImpersonationContext, getSessionFromCookie } from "@/lib/auth";
 import { getSiteSettingsPublic } from "@/lib/site-settings";
+import { mergeSiteSettingsRow } from "@/lib/site-settings-defaults";
 
 /** Lee cookies/sesión: no puede prerender estático en build (Vercel). */
 export const dynamic = "force-dynamic";
@@ -25,9 +26,26 @@ const navLinkSide =
   "block rounded-xl px-3 py-3 text-base font-medium text-[var(--muted)] transition hover:bg-white/5 hover:text-[var(--text)] touch-manipulation";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await getSessionFromCookie();
-  const impCtx = await getImpersonationContext();
-  const site = await getSiteSettingsPublic();
+  let session: Awaited<ReturnType<typeof getSessionFromCookie>> = null;
+  let impCtx: Awaited<ReturnType<typeof getImpersonationContext>> = null;
+  let site = mergeSiteSettingsRow(null);
+
+  try {
+    session = await getSessionFromCookie();
+  } catch (e) {
+    console.error("[admin/layout] session", e);
+  }
+  try {
+    impCtx = await getImpersonationContext();
+  } catch (e) {
+    console.error("[admin/layout] impersonation", e);
+  }
+  try {
+    site = await getSiteSettingsPublic();
+  } catch (e) {
+    console.error("[admin/layout] site settings", e);
+    site = mergeSiteSettingsRow(null);
+  }
 
   const mobileNav = (
     <nav className="flex gap-2 overflow-x-auto px-3 pb-3 [scrollbar-width:thin]">

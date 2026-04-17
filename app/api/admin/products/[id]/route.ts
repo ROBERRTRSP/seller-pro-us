@@ -29,6 +29,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     sku: string | null;
     barcode: string | null;
     priceCents: number;
+    costCents: number | null;
     compareAtPriceCents: number | null;
     promoBadge: string | null;
     categoryId: string | null;
@@ -63,6 +64,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
     data.barcode = body.barcode === null || body.barcode === "" ? null : String(body.barcode).trim();
   }
   if (body.priceCents !== undefined) data.priceCents = Math.max(0, Math.floor(Number(body.priceCents) || 0));
+  if (body.costCents !== undefined) {
+    data.costCents =
+      body.costCents === null ? null : Math.max(0, Math.floor(Number(body.costCents) || 0));
+  }
   if (body.unlimitedStock === true) {
     data.stock = UNLIMITED_STOCK;
   } else if (body.stock !== undefined) {

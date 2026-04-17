@@ -42,6 +42,8 @@ export async function POST(req: Request) {
     sku?: string | null;
     barcode?: string | null;
     priceCents?: number;
+    /** Precio de compra (centavos). Obligatorio al crear. */
+    costCents?: number;
     compareAtPriceCents?: number | null;
     promoBadge?: string | null;
     categoryId?: string | null;
@@ -64,6 +66,10 @@ export async function POST(req: Request) {
   const sku = body.sku != null && String(body.sku).trim() !== "" ? String(body.sku).trim() : null;
   const barcode = body.barcode != null && String(body.barcode).trim() !== "" ? String(body.barcode).trim() : null;
   const priceCents = Math.max(0, Math.floor(Number(body.priceCents) || 0));
+  if (body.costCents === undefined || body.costCents === null) {
+    return NextResponse.json({ error: "Indica el precio de compra." }, { status: 400 });
+  }
+  const costCents = Math.max(0, Math.floor(Number(body.costCents) || 0));
   const stock = parseStock(body);
 
   const resolved = resolveProductImageForAdminCreate({
@@ -110,6 +116,7 @@ export async function POST(req: Request) {
       sku,
       barcode,
       priceCents,
+      costCents,
       compareAtPriceCents,
       promoBadge,
       categoryId,
