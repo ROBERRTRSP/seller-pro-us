@@ -190,8 +190,8 @@ async function main() {
       name: "Demo shopper",
       phone: "(555) 010-0001",
       address: "123 Demostración St, Ciudad Demo, NY 10001",
-      businessLicense: "BL-SEED-0001",
-      tobaccoLicense: "TL-SEED-0001",
+      businessLicense: "BUS-NY-DEMO-1001",
+      tobaccoLicense: "TOB-NY-DEMO-1001",
     },
     create: {
       email: "cliente@tienda.local",
@@ -200,8 +200,8 @@ async function main() {
       role: Role.CLIENT,
       phone: "(555) 010-0001",
       address: "123 Demostración St, Ciudad Demo, NY 10001",
-      businessLicense: "BL-SEED-0001",
-      tobaccoLicense: "TL-SEED-0001",
+      businessLicense: "BUS-NY-DEMO-1001",
+      tobaccoLicense: "TOB-NY-DEMO-1001",
     },
   });
 

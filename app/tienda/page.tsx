@@ -422,8 +422,33 @@ function ProductTile({
   const hasCompare =
     p.compareAtPriceCents != null && p.compareAtPriceCents > p.priceCents;
   const showPending = p.imagePending;
+
+  function activateCard(e: React.MouseEvent<HTMLElement>) {
+    if (!canAdd) return;
+    onAdd(p, e.nativeEvent as unknown as MouseEvent);
+  }
+
+  function activateCardKeyboard(e: React.KeyboardEvent<HTMLElement>) {
+    if (!canAdd) return;
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    onAdd(p);
+  }
+
   return (
-    <article className="flex flex-col rounded-lg border border-neutral-200 bg-white p-2 shadow-sm transition-shadow hover:shadow-md sm:p-3">
+    <article
+      className={`flex flex-col rounded-lg border border-neutral-200 bg-white p-2 shadow-sm transition-shadow hover:shadow-md sm:p-3 ${
+        canAdd ? "cursor-pointer touch-manipulation select-none active:bg-neutral-50/80" : "cursor-not-allowed opacity-95"
+      }`}
+      role="button"
+      tabIndex={canAdd ? 0 : -1}
+      aria-label={
+        canAdd ? `Agregar ${p.name} al carrito` : `${p.name}, sin existencias disponibles`
+      }
+      aria-disabled={!canAdd}
+      onClick={activateCard}
+      onKeyDown={activateCardKeyboard}
+    >
       <div className="relative aspect-square w-full overflow-hidden rounded-md bg-neutral-50">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -469,14 +494,16 @@ function ProductTile({
             <p className="text-[11px] font-semibold text-emerald-700">En carrito: {qty}</p>
           ) : null}
         </div>
-        <button
-          type="button"
-          disabled={!canAdd}
-          onClick={(e) => onAdd(p, e)}
-          className="mt-2 flex min-h-11 w-full items-center justify-center rounded-full border border-[#0071dc] bg-[#0071dc] py-2.5 text-xs font-black uppercase tracking-wide text-white touch-manipulation hover:bg-[#005bb5] disabled:border-neutral-200 disabled:bg-neutral-200 disabled:text-neutral-500 sm:min-h-0 sm:py-2"
+        <span
+          className={`pointer-events-none mt-2 flex min-h-11 w-full items-center justify-center rounded-full border py-2.5 text-xs font-black uppercase tracking-wide sm:min-h-0 sm:py-2 ${
+            canAdd
+              ? "border-[#0071dc] bg-[#0071dc] text-white"
+              : "border-neutral-200 bg-neutral-200 text-neutral-500"
+          }`}
+          aria-hidden
         >
           {canAdd ? "AGREGAR" : "AGOTADO"}
-        </button>
+        </span>
       </div>
     </article>
   );
