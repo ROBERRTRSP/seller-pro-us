@@ -6,6 +6,11 @@ import { mergeOrderLines } from "@/lib/order-lines";
 import { InsufficientStockError, tryDecrementProductStock } from "@/lib/order-stock";
 import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
 
+function trimOrNull(v: string | null | undefined) {
+  const s = String(v ?? "").trim();
+  return s.length > 0 ? s : null;
+}
+
 type Line = { productId: string; quantity: number };
 
 export async function POST(req: Request) {
@@ -32,6 +37,16 @@ export async function POST(req: Request) {
   if (merged.length === 0) {
     return NextResponse.json({ error: "El carrito está vacío" }, { status: 400 });
   }
+
+  const profileUser = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: {
+      phone: true,
+      address: true,
+      businessLicense: true,
+      tobaccoLicense: true,
+    },
+  });
 
   const ids = [...new Set(merged.map((c) => c.productId))];
 
@@ -66,6 +81,10 @@ export async function POST(req: Request) {
           userId: session.sub,
           totalCents,
           status: "PENDIENTE",
+          deliveryPhone: trimOrNull(profileUser?.phone ?? null),
+          deliveryAddress: trimOrNull(profileUser?.address ?? null),
+          deliveryBusinessLicense: trimOrNull(profileUser?.businessLicense ?? null),
+          deliveryTobaccoLicense: trimOrNull(profileUser?.tobaccoLicense ?? null),
           items: {
             create: lines.map((l) => ({
               productId: l.productId,

@@ -6,6 +6,7 @@ import { ADMIN_FETCH_TIMEOUT, adminFetchJson, type AdminFetchJsonResult } from "
 import { mergeOrderLines } from "@/lib/order-lines";
 import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
 import { formatCents } from "@/lib/money";
+import { resolveOrderContact } from "@/lib/order-contact-resolved";
 import { APP_LOCALE, formatOrderStatus } from "@/lib/us-locale";
 
 type Order = {
@@ -15,7 +16,18 @@ type Order = {
   totalCents: number;
   createdAt: string;
   adminNote: string | null;
-  user: { email: string; name: string };
+  deliveryPhone: string | null;
+  deliveryAddress: string | null;
+  deliveryBusinessLicense: string | null;
+  deliveryTobaccoLicense: string | null;
+  user: {
+    email: string;
+    name: string;
+    phone: string | null;
+    address: string | null;
+    businessLicense: string | null;
+    tobaccoLicense: string | null;
+  };
   items: { quantity: number; priceCents: number; product: { id: string; name: string } }[];
 };
 
@@ -261,6 +273,35 @@ export default function AdminPedidosPage() {
               <div>
                 <p className="font-medium">{o.user.name}</p>
                 <p className="text-sm text-[var(--muted)]">{o.user.email}</p>
+                {(() => {
+                  const c = resolveOrderContact(o, o.user);
+                  return (
+                    <dl className="mt-3 space-y-1 rounded-lg border border-[var(--border)] bg-[var(--bg)]/40 px-3 py-2 text-sm">
+                      <div className="flex flex-wrap gap-x-2">
+                        <dt className="text-[var(--muted)]">Teléfono</dt>
+                        <dd className="min-w-0 break-words text-[var(--text)]">{c.phone ?? "—"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[var(--muted)]">Dirección de entrega</dt>
+                        <dd className="mt-0.5 whitespace-pre-wrap break-words text-[var(--text)]">
+                          {c.address ?? "—"}
+                        </dd>
+                      </div>
+                      <div className="flex flex-wrap gap-x-2">
+                        <dt className="text-[var(--muted)]">Business license</dt>
+                        <dd className="min-w-0 break-words font-mono text-xs text-[var(--text)]">
+                          {c.businessLicense ?? "—"}
+                        </dd>
+                      </div>
+                      <div className="flex flex-wrap gap-x-2">
+                        <dt className="text-[var(--muted)]">Tobacco license</dt>
+                        <dd className="min-w-0 break-words font-mono text-xs text-[var(--text)]">
+                          {c.tobaccoLicense ?? "—"}
+                        </dd>
+                      </div>
+                    </dl>
+                  );
+                })()}
                 <p className="mt-2 text-sm text-[var(--muted)]">
                   {new Date(o.createdAt).toLocaleString(APP_LOCALE, {
                     dateStyle: "medium",
@@ -374,7 +415,7 @@ export default function AdminPedidosPage() {
               </div>
             ) : null}
             <div className="mt-4 border-t border-[var(--border)] pt-4">
-              <label className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+              <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
                 Nota interna
               </label>
               <textarea

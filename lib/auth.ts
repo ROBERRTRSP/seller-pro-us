@@ -122,10 +122,15 @@ export async function getSession(): Promise<SessionUser | null> {
   const imp = await verifyImpersonateToken(impTok);
   if (!imp || imp.admSub !== real.sub) return real;
 
-  const client = await prisma.user.findUnique({
-    where: { id: imp.clientSub },
-    select: { id: true, email: true, name: true, role: true },
-  });
+  let client;
+  try {
+    client = await prisma.user.findUnique({
+      where: { id: imp.clientSub },
+      select: { id: true, email: true, name: true, role: true },
+    });
+  } catch {
+    return real;
+  }
   if (!client || client.role !== Role.CLIENT) return real;
 
   return {

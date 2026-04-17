@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
+import { resolveOrderContact } from "@/lib/order-contact-resolved";
 
 function csvEscape(s: string) {
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -15,7 +16,16 @@ export async function GET() {
   const orders = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      user: { select: { email: true, name: true } },
+      user: {
+        select: {
+          email: true,
+          name: true,
+          phone: true,
+          address: true,
+          businessLicense: true,
+          tobaccoLicense: true,
+        },
+      },
       items: { include: { product: { select: { name: true } } } },
     },
   });
@@ -25,6 +35,10 @@ export async function GET() {
     "created_at",
     "customer_email",
     "customer_name",
+    "customer_phone",
+    "delivery_address",
+    "business_license",
+    "tobacco_license",
     "status",
     "total_usd",
     "lines",
@@ -36,11 +50,16 @@ export async function GET() {
     const lineas = o.items
       .map((it) => `${it.product.name}×${it.quantity}`)
       .join("; ");
+    const c = resolveOrderContact(o, o.user);
     const row = [
       o.id,
       o.createdAt.toISOString(),
       o.user.email,
       o.user.name,
+      c.phone ?? "",
+      c.address ?? "",
+      c.businessLicense ?? "",
+      c.tobaccoLicense ?? "",
       o.status,
       (o.totalCents / 100).toFixed(2),
       lineas,

@@ -5,41 +5,42 @@ import { Role } from "@prisma/client";
 import { APP_LOCALE, formatOrderStatus } from "@/lib/us-locale";
 
 export default async function AdminHomePage() {
-  const [
-    productCount,
-    orderCount,
-    pendingOrders,
-    revenueAgg,
-    unavailableProducts,
-    recentOrders,
-    userCount,
-    clientCount,
-  ] = await Promise.all([
-    prisma.product.count(),
-    prisma.order.count(),
-    prisma.order.count({ where: { status: "PENDIENTE" } }),
-    prisma.order.aggregate({
-      where: { status: { not: "CANCELADO" } },
-      _sum: { totalCents: true },
-    }),
-    prisma.product.findMany({
-      where: { stock: 0 },
-      orderBy: { name: "asc" },
-      take: 12,
-      select: { id: true, name: true },
-    }),
-    prisma.order.findMany({
-      take: 6,
-      orderBy: { createdAt: "desc" },
-      include: { user: { select: { name: true, email: true } } },
-    }),
-    prisma.user.count(),
-    prisma.user.count({ where: { role: Role.CLIENT } }),
-  ]);
+  try {
+    const [
+      productCount,
+      orderCount,
+      pendingOrders,
+      revenueAgg,
+      unavailableProducts,
+      recentOrders,
+      userCount,
+      clientCount,
+    ] = await Promise.all([
+      prisma.product.count(),
+      prisma.order.count(),
+      prisma.order.count({ where: { status: "PENDIENTE" } }),
+      prisma.order.aggregate({
+        where: { status: { not: "CANCELADO" } },
+        _sum: { totalCents: true },
+      }),
+      prisma.product.findMany({
+        where: { stock: 0 },
+        orderBy: { name: "asc" },
+        take: 12,
+        select: { id: true, name: true },
+      }),
+      prisma.order.findMany({
+        take: 6,
+        orderBy: { createdAt: "desc" },
+        include: { user: { select: { name: true, email: true } } },
+      }),
+      prisma.user.count(),
+      prisma.user.count({ where: { role: Role.CLIENT } }),
+    ]);
 
-  const ingresos = revenueAgg._sum.totalCents ?? 0;
+    const ingresos = revenueAgg._sum.totalCents ?? 0;
 
-  return (
+    return (
     <div>
       <h1 className="text-2xl font-semibold">Panel</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
@@ -140,4 +141,19 @@ export default async function AdminHomePage() {
       </div>
     </div>
   );
+  } catch (e) {
+    console.error("[admin/page] prisma", e);
+    return (
+      <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-6">
+        <h1 className="text-xl font-semibold text-red-100">No se pudo cargar el panel</h1>
+        <p className="mt-2 text-sm text-red-100/85">
+          No hay conexión con la base de datos o la configuración falló. En local: arranca Postgres (
+          <code className="rounded bg-black/30 px-1">docker compose up -d</code>) y revisa{" "}
+          <code className="rounded bg-black/30 px-1">DATABASE_URL</code> en{" "}
+          <code className="rounded bg-black/30 px-1">.env</code>. En producción (Vercel): misma variable
+          apuntando a Neon.
+        </p>
+      </div>
+    );
+  }
 }

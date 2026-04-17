@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { resolveOrderContact } from "@/lib/order-contact-resolved";
 import { formatCents } from "@/lib/money";
 import { PrintToolbar } from "@/components/PrintToolbar";
 import { formatDateTimeUs, formatOrderStatus } from "@/lib/us-locale";
@@ -12,12 +13,22 @@ export default async function AdminImprimirPedidoPage({ params }: Props) {
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
-      user: { select: { name: true, email: true } },
+      user: {
+        select: {
+          name: true,
+          email: true,
+          phone: true,
+          address: true,
+          businessLicense: true,
+          tobaccoLicense: true,
+        },
+      },
       items: { include: { product: { select: { name: true } } } },
     },
   });
   if (!order) notFound();
 
+  const contact = resolveOrderContact(order, order.user);
   const fecha = formatDateTimeUs(order.createdAt);
 
   return (
@@ -46,9 +57,29 @@ export default async function AdminImprimirPedidoPage({ params }: Props) {
       </header>
 
       <section className="mt-6 print:text-black">
-        <h2 className="text-sm font-semibold uppercase text-[var(--muted)] print:text-neutral-600">Cliente</h2>
-        <p className="mt-1 font-medium print:text-black">{order.user.name}</p>
-        <p className="text-sm text-[var(--muted)] print:text-neutral-800">{order.user.email}</p>
+        <h2 className="text-sm font-semibold uppercase text-[var(--muted)] print:text-neutral-600">
+          Establecimiento / cliente
+        </h2>
+        <p className="mt-1 font-medium print:text-black">{contact.name}</p>
+        <p className="text-sm text-[var(--muted)] print:text-neutral-800">{contact.email}</p>
+        <dl className="mt-3 space-y-1.5 text-sm">
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+            <dt className="text-[var(--muted)] print:text-neutral-600">Teléfono</dt>
+            <dd className="print:text-black">{contact.phone ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-[var(--muted)] print:text-neutral-600">Dirección de entrega</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap print:text-black">{contact.address ?? "—"}</dd>
+          </div>
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+            <dt className="text-[var(--muted)] print:text-neutral-600">Business license</dt>
+            <dd className="font-mono text-xs print:text-black">{contact.businessLicense ?? "—"}</dd>
+          </div>
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+            <dt className="text-[var(--muted)] print:text-neutral-600">Tobacco license</dt>
+            <dd className="font-mono text-xs print:text-black">{contact.tobaccoLicense ?? "—"}</dd>
+          </div>
+        </dl>
       </section>
 
       <section className="mt-8 print:text-black">

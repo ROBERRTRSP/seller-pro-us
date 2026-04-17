@@ -186,12 +186,22 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: "cliente@tienda.local" },
-    update: { name: "Demo shopper" },
+    update: {
+      name: "Demo shopper",
+      phone: "(555) 010-0001",
+      address: "123 Demostración St, Ciudad Demo, NY 10001",
+      businessLicense: "BL-SEED-0001",
+      tobaccoLicense: "TL-SEED-0001",
+    },
     create: {
       email: "cliente@tienda.local",
       password: hash,
       name: "Demo shopper",
       role: Role.CLIENT,
+      phone: "(555) 010-0001",
+      address: "123 Demostración St, Ciudad Demo, NY 10001",
+      businessLicense: "BL-SEED-0001",
+      tobaccoLicense: "TL-SEED-0001",
     },
   });
 
@@ -385,6 +395,10 @@ async function main() {
           status: demo.status,
           totalCents,
           adminNote: demo.adminNote,
+          deliveryPhone: clientUser.phone,
+          deliveryAddress: clientUser.address,
+          deliveryBusinessLicense: clientUser.businessLicense,
+          deliveryTobaccoLicense: clientUser.tobaccoLicense,
           items: { create: demo.lines },
         },
       });

@@ -105,6 +105,11 @@ model Order {
   adminNote  String?
   /** When the store accepts the order; the shopper can no longer edit or cancel. */
   acceptedAt DateTime?
+  /** Datos del cliente copiados al crear el pedido (historial estable). */
+  deliveryPhone           String?
+  deliveryAddress         String?
+  deliveryBusinessLicense String?
+  deliveryTobaccoLicense  String?
   createdAt  DateTime    @default(now())
   items      OrderItem[]
 }

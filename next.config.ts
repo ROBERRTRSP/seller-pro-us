@@ -1,4 +1,9 @@
+import path from "path";
+import { fileURLToPath } from "url";
 import type { NextConfig } from "next";
+
+/** Carpeta real del proyecto (evita que Turbopack use otro lockfile fuera del repo). */
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -43,6 +48,10 @@ function buildSecurityHeaders(): { key: string; value: string }[] {
 }
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: projectRoot,
+  },
+  outputFileTracingRoot: projectRoot,
   webpack: (config, { dev }) => {
     // `npm run dev` usa Turbopack por defecto (sin este problema). Si usas `npm run dev:webpack`:
     if (dev) {
