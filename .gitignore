@@ -37,3 +37,7 @@ prisma/logs/
 # Fotos de productos subidas (se conserva la carpeta con .gitkeep)
 /public/uploads/*
 !/public/uploads/.gitkeep
+!/public/uploads/products/
+/public/uploads/products/*
+# Import XPRESS GEAR (AR King): conservar JPEG en repo para deploy con fotos
+!/public/uploads/products/xpress-gear-*.jpg
