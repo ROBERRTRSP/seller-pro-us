@@ -8,12 +8,11 @@ export const DEFAULT_SITE_SETTINGS = {
   navBrowse: "Browse",
   navCart: "Cart",
   navOrders: "My orders",
-  heroEyebrow: "Everything in one place",
-  heroTitle: "Get it fast — delivered to your door",
-  heroSubtitle: "Your favorites, ready when you are.",
-  heroBody:
-    "Browse the full catalog (including items with a photo pending). Nothing is charged on the web: you pay on delivery, in cash. No credit.",
-  heroCtaLabel: "Shop all",
+  heroEyebrow: "",
+  heroTitle: "",
+  heroSubtitle: "",
+  heroBody: "",
+  heroCtaLabel: "",
 } as const;
 
 export type SiteSettingsPublic = { [K in keyof typeof DEFAULT_SITE_SETTINGS]: string };

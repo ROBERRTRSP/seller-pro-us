@@ -1,5 +1,5 @@
 /**
- * Importa catalogo_gotham_2599.json a Postgres (SKU GOTH-*, precio 25.99).
+ * Importa catalogo_gotham_2599.json a Postgres (SKU GOTH-* en el JSON; actualización estable por URL).
  *
  *   npm run db:import:gotham-2599
  *

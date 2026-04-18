@@ -20,7 +20,11 @@ export async function GET() {
           tobaccoLicense: true,
         },
       },
-      items: { include: { product: { select: { id: true, name: true } } } },
+      items: {
+        include: {
+          product: { select: { id: true, name: true, imageUrl: true, imagePending: true } },
+        },
+      },
     },
   });
   return NextResponse.json(orders, {

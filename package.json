@@ -34,6 +34,7 @@
     "catalog:blunt-backwoods": "npx tsx scripts/build-catalogo-blunt-backwoods.ts",
     "catalog:gotham2599": "npx tsx scripts/build-catalogo-gotham-2599.ts",
     "db:import:gotham-2599": "npx tsx prisma/import-gotham-2599.ts",
+    "db:dedupe:source-url": "npx tsx prisma/dedupe-products-by-source-url.ts",
     "db:import:bulk-catalog": "npx tsx prisma/bulk-import-catalog.ts",
     "db:import:arking-xpress-gear": "npx tsx prisma/bulk-import-catalog.ts prisma/data/arking-xpress-gear-catalog.json"
   },

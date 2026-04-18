@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import Link from "next/link";
 import { formatCents } from "@/lib/money";
 import { sortCategorySectionKeys } from "@/lib/catalog-sections";
 import { MAX_ORDER_LINE_QUANTITY } from "@/lib/order-quantity-limits";
@@ -75,6 +74,22 @@ function compareCatalog(a: Product, b: Product): number {
   return a.name.localeCompare(b.name);
 }
 
+/** Elige hasta `n` productos distintos en orden aleatorio (sin repetir en la misma tanda). */
+function pickRandomProducts(source: Product[], n: number): Product[] {
+  if (source.length === 0) return [];
+  const copy = [...source];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = copy[i]!;
+    copy[i] = copy[j]!;
+    copy[j] = t;
+  }
+  return copy.slice(0, Math.min(n, copy.length));
+}
+
+const SEARCH_SPOTLIGHT_COUNT = 4;
+const SEARCH_SPOTLIGHT_MS = 10_000;
+
 export default function TiendaPage() {
   const site = useSiteSettings();
   const [products, setProducts] = useState<Product[]>([]);
@@ -82,6 +97,8 @@ export default function TiendaPage() {
   const [msg, setMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [cartLines, setCartLines] = useState<CartLine[]>([]);
+  const [searchSpotlight, setSearchSpotlight] = useState<Product[]>([]);
+  const [spotlightRotation, setSpotlightRotation] = useState(0);
   const fetchSeq = useRef(0);
 
   function syncCartFromStorage() {
@@ -166,6 +183,22 @@ export default function TiendaPage() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [loading, loadProducts]);
+
+  useEffect(() => {
+    if (products.length === 0) {
+      setSearchSpotlight([]);
+      return;
+    }
+    function rotate() {
+      setSearchSpotlight(pickRandomProducts(products, SEARCH_SPOTLIGHT_COUNT));
+      setSpotlightRotation((k) => k + 1);
+    }
+    rotate();
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") rotate();
+    }, SEARCH_SPOTLIGHT_MS);
+    return () => clearInterval(id);
+  }, [products]);
 
   const visibleProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -268,41 +301,66 @@ export default function TiendaPage() {
     );
   }
 
+  const heroEyebrow = site.heroEyebrow.trim();
+  const heroTitle = site.heroTitle.trim();
+  const heroSubtitle = site.heroSubtitle.trim();
+  const heroBody = site.heroBody.trim();
+  const heroCta = site.heroCtaLabel.trim();
+  /** El carrito va en la barra superior (`layout`); aquí solo CTA del héroe si existe. */
+  const showHeroSection =
+    heroEyebrow || heroTitle || heroSubtitle || heroBody || heroCta;
+
   return (
     <div className="text-neutral-900">
-      <section
-        id="inicio-catalogo"
-        className="relative -mx-3 overflow-hidden bg-[#0071dc] px-4 py-7 text-white shadow-md sm:-mx-0 sm:rounded-b-2xl sm:px-8 sm:py-10"
-      >
-        <div className="relative z-[1] mx-auto max-w-4xl">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-100">
-            {site.heroEyebrow}
-          </p>
-          <h1 className="mt-2 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-[2.5rem]">
-            {site.heroTitle}
-          </h1>
-          <p className="mt-2 text-lg font-semibold text-blue-50 sm:text-xl">{site.heroSubtitle}</p>
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-blue-100/95">{site.heroBody}</p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <a
-              href="#todo-catalogo"
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#0071dc] shadow touch-manipulation hover:bg-blue-50 sm:min-h-0"
-            >
-              {site.heroCtaLabel}
-            </a>
-            <Link
-              href="/tienda/carrito"
-              className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-white/90 bg-transparent px-6 py-2.5 text-sm font-bold text-white touch-manipulation hover:bg-white/10 sm:min-h-0"
-            >
-              {site.navCart}
-            </Link>
+      {showHeroSection ? (
+        <section
+          id="inicio-catalogo"
+          className="relative -mx-3 overflow-hidden bg-[#0071dc] px-4 py-7 text-white shadow-md sm:-mx-0 sm:rounded-b-2xl sm:px-8 sm:py-10"
+        >
+          <div className="relative z-[1] mx-auto max-w-4xl">
+            {heroEyebrow ? (
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-100">{heroEyebrow}</p>
+            ) : null}
+            {heroTitle ? (
+              <h1
+                className={`text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-[2.5rem] ${heroEyebrow ? "mt-2" : ""}`}
+              >
+                {heroTitle}
+              </h1>
+            ) : null}
+            {heroSubtitle ? (
+              <p
+                className={`text-lg font-semibold text-blue-50 sm:text-xl ${heroTitle || heroEyebrow ? "mt-2" : ""}`}
+              >
+                {heroSubtitle}
+              </p>
+            ) : null}
+            {heroBody ? (
+              <p
+                className={`max-w-2xl text-sm leading-relaxed text-blue-100/95 ${heroSubtitle || heroTitle || heroEyebrow ? "mt-4" : ""}`}
+              >
+                {heroBody}
+              </p>
+            ) : null}
+            {heroCta ? (
+              <div
+                className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap ${heroBody || heroSubtitle || heroTitle || heroEyebrow ? "mt-6" : ""}`}
+              >
+                <a
+                  href="#todo-catalogo"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#0071dc] shadow touch-manipulation hover:bg-blue-50 sm:min-h-0"
+                >
+                  {heroCta}
+                </a>
+              </div>
+            ) : null}
           </div>
-        </div>
-        <div
-          className="pointer-events-none absolute -right-16 top-0 h-56 w-56 rounded-full bg-white/10 blur-3xl"
-          aria-hidden
-        />
-      </section>
+          <div
+            className="pointer-events-none absolute -right-16 top-0 h-56 w-56 rounded-full bg-white/10 blur-3xl"
+            aria-hidden
+          />
+        </section>
+      ) : null}
 
       {msg ? (
         <p className="mt-4 rounded-lg border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-900 shadow-sm">
@@ -328,6 +386,25 @@ export default function TiendaPage() {
               className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-[#0071dc]/20 placeholder:text-neutral-400 focus:border-[#0071dc] focus:ring-2"
             />
           </div>
+          {searchSpotlight.length > 0 ? (
+            <div
+              className="spotlight-strip-bg border-t border-white/25 px-1.5 pb-1.5 pt-1.5 sm:px-2"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <div className="mx-auto grid max-w-md grid-cols-4 gap-1 sm:max-w-lg">
+                {searchSpotlight.map((p, i) => (
+                  <SearchSpotlightTile
+                    key={`${spotlightRotation}-${p.id}-${i}`}
+                    p={p}
+                    qty={qtyInCart(p.id)}
+                    canAdd={qtyInCart(p.id) < stockPurchaseCap(p.stock, MAX_ORDER_LINE_QUANTITY)}
+                    onAdd={addToCart}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
         </nav>
       ) : null}
 
@@ -440,6 +517,83 @@ const PENDING_IMG =
   encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect fill="#fef3c7" width="200" height="200"/><text x="50%" y="46%" dominant-baseline="middle" text-anchor="middle" fill="#92400e" font-family="system-ui" font-size="11" font-weight="600">Foto pendiente</text><text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" fill="#b45309" font-family="system-ui" font-size="9">Marca / tipo / presentación</text></svg>`,
   );
+
+function SearchSpotlightTile({
+  p,
+  qty,
+  canAdd,
+  onAdd,
+}: {
+  p: Product;
+  qty: number;
+  canAdd: boolean;
+  onAdd: (product: Product, e?: MouseEvent) => void;
+}) {
+  const [imgSrc, setImgSrc] = useState(p.imagePending ? "" : (p.imageUrl ?? ""));
+  useEffect(() => {
+    if (p.imagePending) return;
+    setImgSrc(p.imageUrl ?? "");
+  }, [p.imagePending, p.imageUrl]);
+  const showPending = p.imagePending;
+
+  function activate(e: React.MouseEvent<HTMLElement>) {
+    if (!canAdd) return;
+    onAdd(p, e.nativeEvent as unknown as MouseEvent);
+  }
+
+  return (
+    <article
+      className={`flex flex-col rounded-md border border-white/70 bg-white/95 p-0.5 shadow-md shadow-black/10 backdrop-blur-[2px] transition-shadow hover:shadow-lg ${
+        canAdd ? "cursor-pointer touch-manipulation select-none active:bg-white" : "cursor-not-allowed opacity-90"
+      }`}
+      role="button"
+      tabIndex={canAdd ? 0 : -1}
+      aria-label={canAdd ? `Agregar ${p.name} al carrito` : `${p.name}, sin existencias`}
+      aria-disabled={!canAdd}
+      onClick={activate}
+      onKeyDown={(e) => {
+        if (!canAdd) return;
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        onAdd(p);
+      }}
+    >
+      <div className="relative mx-auto aspect-square h-7 w-7 shrink-0 overflow-hidden rounded bg-neutral-50">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={showPending ? PENDING_IMG : imgSrc || BROKEN_IMG}
+          alt=""
+          className="h-full w-full object-contain p-px"
+          loading="lazy"
+          decoding="async"
+          onError={() => {
+            if (!showPending) setImgSrc(BROKEN_IMG);
+          }}
+        />
+      </div>
+      <h3
+        className="mt-0.5 line-clamp-2 text-center text-[7px] font-medium leading-[1.15] text-neutral-900"
+        title={p.name}
+      >
+        {p.name}
+      </h3>
+      <p className="mt-px text-center text-[8px] font-black leading-none text-neutral-900">
+        {formatCents(p.priceCents)}
+      </p>
+      {qty > 0 ? (
+        <p className="text-center text-[6px] font-semibold leading-tight text-emerald-700">{qty}</p>
+      ) : null}
+      <span
+        className={`pointer-events-none mt-0.5 flex min-h-[18px] w-full items-center justify-center rounded-full border py-px text-[7px] font-black uppercase leading-none ${
+          canAdd ? "border-[#0071dc] bg-[#0071dc] text-white" : "border-neutral-300 bg-neutral-200 text-neutral-500"
+        }`}
+        aria-hidden
+      >
+        {canAdd ? "+" : "—"}
+      </span>
+    </article>
+  );
+}
 
 function ProductTile({
   p,
