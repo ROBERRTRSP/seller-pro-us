@@ -22,7 +22,7 @@ export async function GET() {
   if ("error" in gate && gate.error) return gate.error;
 
   const products = await prisma.product.findMany({
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ salesCount: "desc" }, { name: "asc" }],
     include: { category: { select: { id: true, name: true, sortOrder: true } } },
   });
   return NextResponse.json(products, {

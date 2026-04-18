@@ -94,6 +94,8 @@ model Product {
   catalogPublished     Boolean     @default(true) @map("catalog_published")
   /** draft | published — import workflow; keep draft until imagen aprobada. */
   listingStatus        String      @default("published") @map("listing_status")
+  /** Unidades vendidas acumuladas (checkout); ordenación en catálogo: mayor primero. */
+  salesCount           Int           @default(0) @map("sales_count")
   createdAt            DateTime      @default(now())
   orderItems           OrderItem[]
 }

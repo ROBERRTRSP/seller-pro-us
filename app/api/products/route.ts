@@ -14,12 +14,13 @@ export async function GET() {
 
   const rows = await prisma.product.findMany({
     where: { catalogPublished: true },
-    orderBy: { name: "asc" },
+    orderBy: [{ salesCount: "desc" }, { name: "asc" }],
     select: {
       id: true,
       name: true,
       description: true,
       priceCents: true,
+      salesCount: true,
       compareAtPriceCents: true,
       promoBadge: true,
       stock: true,
@@ -41,6 +42,7 @@ export async function GET() {
     name: p.name,
     description: p.description,
     priceCents: p.priceCents,
+    salesCount: p.salesCount,
     compareAtPriceCents: p.compareAtPriceCents,
     promoBadge: p.promoBadge,
     stock: p.stock,

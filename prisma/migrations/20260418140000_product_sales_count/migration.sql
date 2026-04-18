@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "sales_count" INTEGER NOT NULL DEFAULT 0;

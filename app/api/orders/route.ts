@@ -76,7 +76,7 @@ export async function POST(req: Request) {
         lines.push({ productId: p.id, quantity: line.quantity, priceCents: p.priceCents });
       }
 
-      return tx.order.create({
+      const order = await tx.order.create({
         data: {
           userId: session.sub,
           totalCents,
@@ -94,6 +94,15 @@ export async function POST(req: Request) {
           },
         },
       });
+
+      for (const line of merged) {
+        await tx.product.update({
+          where: { id: line.productId },
+          data: { salesCount: { increment: line.quantity } },
+        });
+      }
+
+      return order;
     });
 
     return NextResponse.json({ id: order.id, totalCents: order.totalCents });

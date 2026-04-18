@@ -13,6 +13,8 @@ type Product = {
   name: string;
   description: string;
   priceCents: number;
+  /** Ventas acumuladas; mayor primero en catálogo. */
+  salesCount?: number;
   compareAtPriceCents: number | null;
   promoBadge: string | null;
   category: string | null;
@@ -66,6 +68,12 @@ function badgeClass(badge: string | null): string {
 
 /** Catálogos grandes (p. ej. import Gotham) pueden superar 25s en JSON + red. */
 const CATALOG_FETCH_MS = 120_000;
+
+function compareCatalog(a: Product, b: Product): number {
+  const sb = (b.salesCount ?? 0) - (a.salesCount ?? 0);
+  if (sb !== 0) return sb;
+  return a.name.localeCompare(b.name);
+}
 
 export default function TiendaPage() {
   const site = useSiteSettings();
@@ -161,12 +169,14 @@ export default function TiendaPage() {
 
   const visibleProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) => {
-      const haystack =
-        `${p.name} ${p.description} ${p.category ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""}`.toLowerCase();
-      return haystack.includes(q);
-    });
+    const filtered = !q
+      ? products
+      : products.filter((p) => {
+          const haystack =
+            `${p.name} ${p.description} ${p.category ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""}`.toLowerCase();
+          return haystack.includes(q);
+        });
+    return [...filtered].sort(compareCatalog);
   }, [products, searchQuery]);
 
   const byCategory = useMemo(() => {
@@ -178,7 +188,7 @@ export default function TiendaPage() {
       m.set(key, list);
     }
     for (const [, list] of m) {
-      list.sort((a, b) => a.name.localeCompare(b.name));
+      list.sort(compareCatalog);
     }
     return m;
   }, [visibleProducts]);
@@ -216,19 +226,22 @@ export default function TiendaPage() {
   }
 
   const flashProducts = useMemo(() => {
-    return visibleProducts
-      .filter((p) => {
-        const deal =
-          p.compareAtPriceCents != null && p.compareAtPriceCents > p.priceCents;
-        const b = (p.promoBadge ?? "").toLowerCase();
-        const tag =
-          /clearance|liquidación|liquidacion|rollback|reduced|rebaj|flash|ofert|precio/i.test(
-            b,
-          );
-        return deal || tag;
-      })
-      .slice(0, 12);
+    const filtered = visibleProducts.filter((p) => {
+      const deal =
+        p.compareAtPriceCents != null && p.compareAtPriceCents > p.priceCents;
+      const b = (p.promoBadge ?? "").toLowerCase();
+      const tag =
+        /clearance|liquidación|liquidacion|rollback|reduced|rebaj|flash|ofert|precio/i.test(
+          b,
+        );
+      return deal || tag;
+    });
+    return [...filtered].sort(compareCatalog).slice(0, 12);
   }, [visibleProducts]);
+
+  const topSellers = useMemo(() => {
+    return [...products].sort(compareCatalog).slice(0, 10);
+  }, [products]);
 
   if (loading) {
     return (
@@ -316,6 +329,31 @@ export default function TiendaPage() {
             />
           </div>
         </nav>
+      ) : null}
+
+      {topSellers.length > 0 ? (
+        <section className="mt-8 scroll-mt-32" id="mas-vendidos">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2 border-b border-neutral-200 pb-2">
+            <div>
+              <h2 className="text-xl font-black tracking-tight text-neutral-900">Más vendidos</h2>
+              <p className="text-xs font-semibold text-[#0071dc]">Los favoritos de nuestros clientes</p>
+            </div>
+            <a href="#todo-catalogo" className="text-sm font-bold text-[#0071dc] hover:underline">
+              Ver todo
+            </a>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 md:grid-cols-5">
+            {topSellers.map((p) => (
+              <ProductTile
+                key={`top-${p.id}`}
+                p={p}
+                qty={qtyInCart(p.id)}
+                canAdd={qtyInCart(p.id) < stockPurchaseCap(p.stock, MAX_ORDER_LINE_QUANTITY)}
+                onAdd={addToCart}
+              />
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {flashProducts.length > 0 ? (
