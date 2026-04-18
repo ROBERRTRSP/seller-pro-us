@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    return NextResponse.json({ error: "Petición no válida." }, { status: 400 });
   }
 
   const email = String(body.email ?? "")
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   const password = String(body.password ?? "");
 
   if (!email || !password) {
-    return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+    return NextResponse.json({ error: "Introduce correo y contraseña." }, { status: 400 });
   }
 
   const rateKey = loginRateLimitKey(req, email);
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
         },
       );
     }
-    return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+    return NextResponse.json({ error: "Correo o contraseña incorrectos." }, { status: 401 });
   }
 
   const ok = await bcrypt.compare(password, user.password);
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
         },
       );
     }
-    return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+    return NextResponse.json({ error: "Correo o contraseña incorrectos." }, { status: 401 });
   }
 
   clearLoginFailures(rateKey);
@@ -91,12 +91,15 @@ export async function POST(req: Request) {
     const msg = e instanceof Error ? e.message : "";
     if (msg.includes("AUTH_SECRET")) {
       return NextResponse.json(
-        { error: "AUTH_SECRET is missing or invalid on the server (min. 16 characters)." },
+        {
+          error:
+            "En el servidor falta AUTH_SECRET o es demasiado corta (mín. 16 caracteres). Configúrala en Vercel / .env.",
+        },
         { status: 503 },
       );
     }
     return NextResponse.json(
-      { error: "Could not create session. Check the database and configuration." },
+      { error: "No se pudo crear la sesión. Revisa la base de datos y la configuración." },
       { status: 500 },
     );
   }

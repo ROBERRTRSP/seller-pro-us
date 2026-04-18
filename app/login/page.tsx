@@ -30,12 +30,24 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json().catch(() => ({}));
+      let res: Response;
+      try {
+        res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+      } catch {
+        setError("No hay conexión con el servidor. Comprueba la red.");
+        return;
+      }
+      const raw = await res.text();
+      let data: { ok?: boolean; redirect?: string; error?: string } = {};
+      try {
+        data = raw ? (JSON.parse(raw) as typeof data) : {};
+      } catch {
+        /* respuesta HTML u otro formato */
+      }
       if (!res.ok) {
         if (res.status === 429) {
           const ra = res.headers.get("Retry-After");
@@ -43,11 +55,17 @@ export default function LoginPage() {
           setError((typeof data.error === "string" ? data.error : "Demasiados intentos.") + wait);
           return;
         }
-        setError(data.error ?? "No se pudo iniciar sesión");
+        const msg =
+          typeof data.error === "string"
+            ? data.error
+            : `Error del servidor (HTTP ${res.status}). Si usas la cuenta demo, debe existir en esta base de datos (en local: npm run db:seed).`;
+        setError(msg);
         return;
       }
       router.push(safeInternalPath(data.redirect, "/"));
       router.refresh();
+    } catch {
+      setError("No se pudo completar el inicio de sesión.");
     } finally {
       setLoading(false);
     }

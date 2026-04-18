@@ -25,7 +25,7 @@ async function hasValidImpersonation(
   }
 }
 
-export async function middleware(request: NextRequest) {
+async function handleMiddleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
   const secret = getSecret();
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -79,6 +79,19 @@ export async function middleware(request: NextRequest) {
   }
 
   return NextResponse.next();
+}
+
+export async function middleware(request: NextRequest) {
+  try {
+    return await handleMiddleware(request);
+  } catch (e) {
+    console.error("[middleware]", e);
+    const { pathname } = request.nextUrl;
+    if (pathname.startsWith("/login")) {
+      return NextResponse.next();
+    }
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 }
 
 export const config = {
