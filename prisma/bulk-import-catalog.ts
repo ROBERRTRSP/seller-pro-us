@@ -101,7 +101,8 @@ async function main() {
   const summary = await runBulkImportFromRows(prisma, rows);
   printTable(summary.rows);
   console.log("\n--- Resumen ---");
-  const { rows: _rowDetails, ...totalsOnly } = summary;
+  const { rows: rowDetails, ...totalsOnly } = summary;
+  void rowDetails;
   console.log(JSON.stringify(totalsOnly, null, 2));
   console.log(
     JSON.stringify(

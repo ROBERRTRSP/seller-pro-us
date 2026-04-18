@@ -185,7 +185,7 @@ export default function AdminUsuariosPage() {
 
   const filteredList = useMemo(() => {
     const q = normalizeSearchText(userSearch);
-    let rows = clientsOnly ? list.filter((u) => u.role === "CLIENT") : list;
+    const rows = clientsOnly ? list.filter((u) => u.role === "CLIENT") : list;
     if (!q) return rows;
     return rows.filter((u) => {
       const haystack = normalizeSearchText(`${u.name} ${u.email}`);

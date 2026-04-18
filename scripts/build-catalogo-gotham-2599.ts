@@ -183,7 +183,7 @@ function parseProductBlock(block: string): RawRow | null {
     /src="(https:\/\/cdn11\.bigcommerce\.com\/[^"]+\/products\/\d+\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i,
   );
   if (!imgMatch) return null;
-  let image = imgMatch[1].replace(/&amp;/g, "&");
+  const image = imgMatch[1].replace(/&amp;/g, "&");
   if (!/\/products\/\d+\//i.test(image)) return null;
 
   const h4m = block.match(/<h4 class="([^"]*)"[^>]*>\s*<a[^>]*>([^<]*)<\/a>/i);
