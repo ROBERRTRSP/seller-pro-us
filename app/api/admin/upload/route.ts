@@ -19,7 +19,10 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error("[upload] formData", e);
     return NextResponse.json(
-      { error: "Could not read the upload (file too large or connection interrupted)." },
+      {
+        error:
+          "No se pudo leer el archivo (demasiado grande o conexión interrumpida). Prueba una foto menor a 8 MB.",
+      },
       { status: 400 },
     );
   }
@@ -31,12 +34,12 @@ export async function POST(req: Request) {
     !("arrayBuffer" in entry) ||
     typeof (entry as Blob).size !== "number"
   ) {
-    return NextResponse.json({ error: 'Missing file (form field must be named "file").' }, { status: 400 });
+    return NextResponse.json({ error: 'No se envió archivo (el campo debe llamarse "file").' }, { status: 400 });
   }
 
   const blob = entry as Blob;
   if (blob.size > MAX_CATALOG_IMAGE_BYTES) {
-    return NextResponse.json({ error: "Image exceeds 8 MB." }, { status: 400 });
+    return NextResponse.json({ error: "La imagen supera 8 MB." }, { status: 400 });
   }
 
   let buf: Uint8Array;
@@ -44,11 +47,11 @@ export async function POST(req: Request) {
     buf = new Uint8Array(await blob.arrayBuffer());
   } catch (e) {
     console.error("[upload] arrayBuffer", e);
-    return NextResponse.json({ error: "Could not read the file data." }, { status: 400 });
+    return NextResponse.json({ error: "No se pudieron leer los datos del archivo." }, { status: 400 });
   }
 
   if (buf.byteLength > MAX_CATALOG_IMAGE_BYTES) {
-    return NextResponse.json({ error: "Image exceeds 8 MB." }, { status: 400 });
+    return NextResponse.json({ error: "La imagen supera 8 MB." }, { status: 400 });
   }
 
   let normalized: Awaited<ReturnType<typeof normalizeCatalogImageBuffer>>;
@@ -69,7 +72,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          "Unrecognized image. Use JPG, PNG, WebP or GIF (max 8 MB). If the photo is from an iPhone or iPad, try Most Compatible or paste an image URL.",
+          "Imagen no reconocida. Usa JPG, PNG, WebP o GIF (máx. 8 MB). En iPhone/iPad prueba «Más compatible» en Cámara o pega una URL de imagen.",
       },
       { status: 400 },
     );
@@ -101,7 +104,10 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("[upload] vercel blob", e);
       return NextResponse.json(
-        { error: "Could not upload to blob storage. Check BLOB_READ_WRITE_TOKEN and the Vercel Blob store." },
+        {
+          error:
+            "No se pudo subir al almacenamiento Blob. Revisa BLOB_READ_WRITE_TOKEN y la tienda Blob en Vercel.",
+        },
         { status: 500 },
       );
     }
@@ -117,7 +123,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          "Could not save the file on the server. For Vercel, set BLOB_READ_WRITE_TOKEN (Storage → Blob). Locally, ensure the app can write to public/uploads.",
+          "No se pudo guardar el archivo en el servidor. En Vercel configura BLOB_READ_WRITE_TOKEN (Storage → Blob). En local comprueba permisos de escritura en public/uploads.",
       },
       { status: 500 },
     );

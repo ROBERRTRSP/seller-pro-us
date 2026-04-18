@@ -29,13 +29,27 @@ export function ProductPhotoUpload({ value, onChange, disabled, inputId }: Props
         body: fd,
         credentials: "include",
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; url?: string };
+      const raw = await res.text();
+      let data = {} as { error?: string; url?: string };
+      try {
+        data = raw ? (JSON.parse(raw) as { error?: string; url?: string }) : {};
+      } catch {
+        /* HTML de error del servidor */
+      }
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           setLocalError("Debes iniciar sesión como administrador para subir fotos.");
           return;
         }
-        setLocalError(typeof data.error === "string" ? data.error : "Error al subir");
+        if (res.status === 503 && typeof data.error === "string") {
+          setLocalError(data.error);
+          return;
+        }
+        setLocalError(
+          typeof data.error === "string"
+            ? data.error
+            : `No se pudo subir la foto (HTTP ${res.status}). En producción suele faltar Vercel Blob.`,
+        );
         return;
       }
       if (typeof data.url === "string" && data.url.length > 0) {

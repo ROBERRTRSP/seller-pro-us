@@ -42,8 +42,8 @@ export async function POST(req: Request) {
     sku?: string | null;
     barcode?: string | null;
     priceCents?: number;
-    /** Precio de compra (centavos). Obligatorio al crear. */
-    costCents?: number;
+    /** Precio de compra (centavos). Opcional al crear. */
+    costCents?: number | null;
     compareAtPriceCents?: number | null;
     promoBadge?: string | null;
     categoryId?: string | null;
@@ -66,10 +66,15 @@ export async function POST(req: Request) {
   const sku = body.sku != null && String(body.sku).trim() !== "" ? String(body.sku).trim() : null;
   const barcode = body.barcode != null && String(body.barcode).trim() !== "" ? String(body.barcode).trim() : null;
   const priceCents = Math.max(0, Math.floor(Number(body.priceCents) || 0));
-  if (body.costCents === undefined || body.costCents === null) {
-    return NextResponse.json({ error: "Indica el precio de compra." }, { status: 400 });
+
+  let costCents: number | null = null;
+  if (body.costCents !== undefined && body.costCents !== null) {
+    const c = Math.floor(Number(body.costCents));
+    if (!Number.isFinite(c) || c < 0) {
+      return NextResponse.json({ error: "El precio de compra no es válido." }, { status: 400 });
+    }
+    costCents = c;
   }
-  const costCents = Math.max(0, Math.floor(Number(body.costCents) || 0));
   const stock = parseStock(body);
 
   const resolved = resolveProductImageForAdminCreate({
@@ -101,11 +106,11 @@ export async function POST(req: Request) {
   }
 
   if (!name) {
-    return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    return NextResponse.json({ error: "El nombre es obligatorio." }, { status: 400 });
   }
   if (compareAtPriceCents != null && compareAtPriceCents <= priceCents) {
     return NextResponse.json(
-      { error: "The “Was” price must be higher than the current price (to show a deal)." },
+      { error: "El precio «antes» debe ser mayor que el precio actual." },
       { status: 400 },
     );
   }

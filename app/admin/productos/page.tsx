@@ -274,14 +274,14 @@ export default function AdminProductosPage() {
     }
     const priceCents = Math.round(parseFloat(form.priceDollars.replace(",", ".")) * 100) || 0;
     const costTrim = form.costDollars.trim();
-    if (!costTrim) {
-      setError("Indica el precio de compra.");
-      return;
-    }
-    const costCents = Math.round(parseFloat(costTrim.replace(",", ".")) * 100);
-    if (!Number.isFinite(costCents) || costCents < 0) {
-      setError("El precio de compra no es válido.");
-      return;
+    let costPayload: number | null = null;
+    if (costTrim) {
+      const costCents = Math.round(parseFloat(costTrim.replace(",", ".")) * 100);
+      if (!Number.isFinite(costCents) || costCents < 0) {
+        setError("El precio de compra no es válido.");
+        return;
+      }
+      costPayload = costCents;
     }
     const compareAtPriceCents = parseDollarsToCents(form.compareAtDollars);
     if (compareAtPriceCents != null && compareAtPriceCents <= priceCents) {
@@ -298,7 +298,7 @@ export default function AdminProductosPage() {
           name: form.name,
           description: form.description,
           priceCents,
-          costCents,
+          costCents: costPayload,
           compareAtPriceCents,
           promoBadge: form.promoBadge.trim() || null,
           categoryId: form.categoryId.trim() || null,
@@ -361,6 +361,12 @@ export default function AdminProductosPage() {
         className="mt-8 space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
       >
         <h2 className="text-sm font-medium text-[var(--muted)]">Producto nuevo</h2>
+        <p className="text-xs text-[var(--muted)]">
+          Nombre y precio de venta son obligatorios. El precio de compra es opcional. Si al pulsar
+          «Hacer o elegir foto» no se sube: en <strong className="text-[var(--text)]">Vercel</strong>{" "}
+          configura almacenamiento Blob (variable BLOB_READ_WRITE_TOKEN) y vuelve a desplegar; en
+          local la imagen se guarda en public/uploads.
+        </p>
         <input
           required
           placeholder="Nombre"
@@ -456,14 +462,13 @@ export default function AdminProductosPage() {
         <div className="space-y-2">
           <div className="flex flex-wrap gap-3">
             <input
-              required
               type="text"
               inputMode="decimal"
-              placeholder="Precio de compra ($)"
-              aria-label="Precio de compra en dólares"
+              placeholder="Precio de compra ($), opcional"
+              aria-label="Precio de compra en dólares (opcional)"
               value={form.costDollars}
               onChange={(e) => setForm((f) => ({ ...f, costDollars: e.target.value }))}
-              className="w-40 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+              className="w-48 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
             />
             <input
               required
