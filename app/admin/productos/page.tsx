@@ -117,6 +117,8 @@ export default function AdminProductosPage() {
     sourceUrl: "",
   });
   const [listSearch, setListSearch] = useState("");
+  const [catalogTogglingId, setCatalogTogglingId] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState("");
 
   const suggestedNewProductSale = useMemo(() => {
     const c = parseCostDollarsToCents(form.costDollars);
@@ -162,7 +164,10 @@ export default function AdminProductosPage() {
     }
     const products = pr.data;
     const cats = cr.data;
-    if (Array.isArray(products)) setList(products);
+    if (Array.isArray(products)) {
+      setList(products);
+      setCatalogError("");
+    }
     if (Array.isArray(cats)) {
       setCategories(
         cats.map((c) => ({
@@ -337,6 +342,34 @@ export default function AdminProductosPage() {
     await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
     if (editingId === id) setEditingId(null);
     await load();
+  }
+
+  async function toggleCatalogInStore(p: Product) {
+    const visible = p.catalogPublished !== false;
+    const nextPublished = !visible;
+    setError("");
+    setCatalogError("");
+    setCatalogTogglingId(p.id);
+    try {
+      const res = await adminFetchJson<Product>(`/api/admin/products/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ catalogPublished: nextPublished }),
+      });
+      if (!res.ok) {
+        setCatalogError(res.error);
+        return;
+      }
+      const pub = res.data.catalogPublished !== false;
+      setList((prev) =>
+        prev.map((x) => (x.id === p.id ? { ...x, catalogPublished: pub } : x)),
+      );
+      if (editingId === p.id) {
+        setEditForm((f) => ({ ...f, catalogPublished: pub }));
+      }
+    } finally {
+      setCatalogTogglingId(null);
+    }
   }
 
   if (loading) {
@@ -540,6 +573,11 @@ export default function AdminProductosPage() {
 
       <div className="mt-10 border-t border-[var(--border)] pt-8">
         <h2 className="text-sm font-semibold text-[var(--text)]">Lista de productos</h2>
+        {catalogError ? (
+          <p className="mt-2 text-sm text-red-400" role="alert">
+            {catalogError}
+          </p>
+        ) : null}
         <label htmlFor="admin-productos-buscar" className="sr-only">
           Buscar en la lista de productos
         </label>
@@ -638,7 +676,29 @@ export default function AdminProductosPage() {
                   ) : null}
                 </div>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={catalogTogglingId === p.id}
+                  aria-pressed={p.catalogPublished !== false}
+                  title={
+                    p.catalogPublished === false
+                      ? "Mostrar este producto en la tienda de clientes"
+                      : "Ocultar este producto del catálogo de clientes"
+                  }
+                  onClick={() => void toggleCatalogInStore(p)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                    p.catalogPublished === false
+                      ? "border border-[var(--accent)]/40 bg-[var(--accent)]/15 text-[var(--accent)] hover:bg-[var(--accent)]/25"
+                      : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--bg)]"
+                  }`}
+                >
+                  {catalogTogglingId === p.id
+                    ? "…"
+                    : p.catalogPublished === false
+                      ? "Mostrar en tienda"
+                      : "Ocultar de la tienda"}
+                </button>
                 <button
                   type="button"
                   onClick={() => (editingId === p.id ? setEditingId(null) : openEdit(p))}
