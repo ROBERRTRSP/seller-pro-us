@@ -240,7 +240,7 @@ export default function TiendaPage() {
   }, [visibleProducts]);
 
   const topSellers = useMemo(() => {
-    return [...products].sort(compareCatalog).slice(0, 50);
+    return [...products].sort(compareCatalog).slice(0, 150);
   }, [products]);
 
   if (loading) {
@@ -342,7 +342,7 @@ export default function TiendaPage() {
               Ver todo
             </a>
           </div>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {topSellers.map((p) => (
               <ProductTile
                 key={`top-${p.id}`}
