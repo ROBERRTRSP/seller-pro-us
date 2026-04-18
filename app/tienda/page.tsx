@@ -74,21 +74,17 @@ function compareCatalog(a: Product, b: Product): number {
   return a.name.localeCompare(b.name);
 }
 
-/** Elige hasta `n` productos distintos en orden aleatorio (sin repetir en la misma tanda). */
-function pickRandomProducts(source: Product[], n: number): Product[] {
-  if (source.length === 0) return [];
-  const copy = [...source];
+/** Orden aleatorio (Fisher-Yates). */
+function shuffleArray<T>(items: T[]): T[] {
+  const copy = [...items];
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     const t = copy[i]!;
     copy[i] = copy[j]!;
     copy[j] = t;
   }
-  return copy.slice(0, Math.min(n, copy.length));
+  return copy;
 }
-
-const SEARCH_SPOTLIGHT_COUNT = 4;
-const SEARCH_SPOTLIGHT_MS = 10_000;
 
 export default function TiendaPage() {
   const site = useSiteSettings();
@@ -97,8 +93,6 @@ export default function TiendaPage() {
   const [msg, setMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [cartLines, setCartLines] = useState<CartLine[]>([]);
-  const [searchSpotlight, setSearchSpotlight] = useState<Product[]>([]);
-  const [spotlightRotation, setSpotlightRotation] = useState(0);
   const fetchSeq = useRef(0);
 
   function syncCartFromStorage() {
@@ -184,21 +178,17 @@ export default function TiendaPage() {
     };
   }, [loading, loadProducts]);
 
-  useEffect(() => {
-    if (products.length === 0) {
-      setSearchSpotlight([]);
-      return;
-    }
-    function rotate() {
-      setSearchSpotlight(pickRandomProducts(products, SEARCH_SPOTLIGHT_COUNT));
-      setSpotlightRotation((k) => k + 1);
-    }
-    rotate();
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") rotate();
-    }, SEARCH_SPOTLIGHT_MS);
-    return () => clearInterval(id);
+  /** Dos copias iguales para correa infinita (translate -50%). */
+  const beltLoop = useMemo(() => {
+    if (products.length === 0) return [];
+    const shuffled = shuffleArray(products);
+    return [...shuffled, ...shuffled];
   }, [products]);
+
+  const beltDurationSec = Math.min(
+    240,
+    Math.max(48, Math.round(products.length * 0.38)),
+  );
 
   const visibleProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -386,22 +376,30 @@ export default function TiendaPage() {
               className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 outline-none ring-[#0071dc]/20 placeholder:text-neutral-400 focus:border-[#0071dc] focus:ring-2"
             />
           </div>
-          {searchSpotlight.length > 0 ? (
-            <div
-              className="spotlight-strip-bg border-t border-white/25 px-1.5 pb-1.5 pt-1.5 sm:px-2"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              <div className="mx-auto grid max-w-md grid-cols-4 gap-1 sm:max-w-lg">
-                {searchSpotlight.map((p, i) => (
-                  <SearchSpotlightTile
-                    key={`${spotlightRotation}-${p.id}-${i}`}
-                    p={p}
-                    qty={qtyInCart(p.id)}
-                    canAdd={qtyInCart(p.id) < stockPurchaseCap(p.stock, MAX_ORDER_LINE_QUANTITY)}
-                    onAdd={addToCart}
-                  />
-                ))}
+          {beltLoop.length > 0 ? (
+            <div className="group relative -mx-2 mt-1 overflow-hidden rounded-b-lg border-t border-white/30 shadow-inner sm:-mx-1">
+              <div className="tienda-belt-bg pointer-events-none absolute inset-0 opacity-[0.92]" aria-hidden />
+              <div className="relative z-[1] overflow-hidden py-0.5">
+                <div
+                  className="tienda-belt-track gap-1 px-1 py-0.5 group-hover:[animation-play-state:paused]"
+                  style={
+                    {
+                      "--belt-duration": `${beltDurationSec}s`,
+                    } as React.CSSProperties
+                  }
+                >
+                  {beltLoop.map((p, i) => (
+                    <BeltMicroTile
+                      key={`belt-${p.id}-${i}`}
+                      p={p}
+                      qty={qtyInCart(p.id)}
+                      canAdd={
+                        qtyInCart(p.id) < stockPurchaseCap(p.stock, MAX_ORDER_LINE_QUANTITY)
+                      }
+                      onAdd={addToCart}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           ) : null}
@@ -518,7 +516,8 @@ const PENDING_IMG =
     `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect fill="#fef3c7" width="200" height="200"/><text x="50%" y="46%" dominant-baseline="middle" text-anchor="middle" fill="#92400e" font-family="system-ui" font-size="11" font-weight="600">Foto pendiente</text><text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" fill="#b45309" font-family="system-ui" font-size="9">Marca / tipo / presentación</text></svg>`,
   );
 
-function SearchSpotlightTile({
+/** Mini ficha para la correa horizontal (~⅓ del tamaño anterior del spotlight). */
+function BeltMicroTile({
   p,
   qty,
   canAdd,
@@ -543,8 +542,8 @@ function SearchSpotlightTile({
 
   return (
     <article
-      className={`flex flex-col rounded-md border border-white/70 bg-white/95 p-0.5 shadow-md shadow-black/10 backdrop-blur-[2px] transition-shadow hover:shadow-lg ${
-        canAdd ? "cursor-pointer touch-manipulation select-none active:bg-white" : "cursor-not-allowed opacity-90"
+      className={`flex w-[3.75rem] shrink-0 flex-col rounded-md border border-white/70 bg-white/95 p-0.5 shadow-sm backdrop-blur-[2px] ${
+        canAdd ? "cursor-pointer touch-manipulation active:bg-white" : "cursor-not-allowed opacity-90"
       }`}
       role="button"
       tabIndex={canAdd ? 0 : -1}
@@ -558,7 +557,7 @@ function SearchSpotlightTile({
         onAdd(p);
       }}
     >
-      <div className="relative mx-auto aspect-square h-7 w-7 shrink-0 overflow-hidden rounded bg-neutral-50">
+      <div className="relative mx-auto h-[1.75rem] w-[1.75rem] shrink-0 overflow-hidden rounded bg-neutral-50">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={showPending ? PENDING_IMG : imgSrc || BROKEN_IMG}
@@ -572,19 +571,19 @@ function SearchSpotlightTile({
         />
       </div>
       <h3
-        className="mt-0.5 line-clamp-2 text-center text-[7px] font-medium leading-[1.15] text-neutral-900"
+        className="mt-0.5 line-clamp-2 min-h-[1.5rem] text-center text-[6px] font-medium leading-[1.1] text-neutral-900"
         title={p.name}
       >
         {p.name}
       </h3>
-      <p className="mt-px text-center text-[8px] font-black leading-none text-neutral-900">
+      <p className="text-center text-[7px] font-black leading-tight text-neutral-900">
         {formatCents(p.priceCents)}
       </p>
       {qty > 0 ? (
-        <p className="text-center text-[6px] font-semibold leading-tight text-emerald-700">{qty}</p>
+        <p className="text-center text-[6px] font-semibold leading-none text-emerald-700">{qty}</p>
       ) : null}
       <span
-        className={`pointer-events-none mt-0.5 flex min-h-[18px] w-full items-center justify-center rounded-full border py-px text-[7px] font-black uppercase leading-none ${
+        className={`pointer-events-none mt-0.5 flex min-h-[0.875rem] w-full items-center justify-center rounded border text-[6px] font-black ${
           canAdd ? "border-[#0071dc] bg-[#0071dc] text-white" : "border-neutral-300 bg-neutral-200 text-neutral-500"
         }`}
         aria-hidden

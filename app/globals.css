@@ -19,48 +19,6 @@ body {
   min-height: 100vh;
 }
 
-@layer utilities {
-  /** Franja de sugerencias bajo el buscador: degradado vivo que se desplaza. */
-  .spotlight-strip-bg {
-    background: linear-gradient(
-      270deg,
-      #ff0080,
-      #ff9100,
-      #ffea00,
-      #00ffa3,
-      #00b4ff,
-      #b829ff,
-      #ff0080
-    );
-    background-size: 400% 400%;
-    animation: spotlight-strip-flow 16s ease infinite;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.35),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.08),
-      0 4px 28px rgba(124, 58, 237, 0.45);
-  }
-
-  @keyframes spotlight-strip-flow {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .spotlight-strip-bg {
-      animation: none;
-      background-position: 50% 50%;
-      background-size: 100% 100%;
-    }
-  }
-}
-
 @media print {
   @page {
     margin: 12mm;
@@ -104,5 +62,57 @@ body {
   .min-h-screen > main {
     padding: 0.75rem !important;
     max-width: none !important;
+  }
+}
+
+/* Franja de productos bajo el buscador en /tienda */
+@keyframes tienda-belt-bg-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes tienda-belt-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.tienda-belt-bg {
+  background: linear-gradient(
+    90deg,
+    #ec4899,
+    #facc15,
+    #22d3ee,
+    #a855f7,
+    #4ade80,
+    #fb923c,
+    #ec4899
+  );
+  background-size: 400% 100%;
+  animation: tienda-belt-bg-flow 10s linear infinite;
+}
+
+.tienda-belt-track {
+  display: flex;
+  width: max-content;
+  animation: tienda-belt-scroll var(--belt-duration, 140s) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tienda-belt-bg {
+    animation: none;
+    background-position: 50% 50%;
+  }
+
+  .tienda-belt-track {
+    animation: none;
+    transform: none;
   }
 }

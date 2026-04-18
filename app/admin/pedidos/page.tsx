@@ -28,11 +28,7 @@ type Order = {
     businessLicense: string | null;
     tobaccoLicense: string | null;
   };
-  items: {
-    quantity: number;
-    priceCents: number;
-    product: { id: string; name: string; imageUrl: string | null; imagePending: boolean };
-  }[];
+  items: { quantity: number; priceCents: number; product: { id: string; name: string } }[];
 };
 
 const STATUSES = ["PENDIENTE", "ENVIADO", "COMPLETADO", "CANCELADO"] as const;
@@ -86,39 +82,6 @@ function getOrderStatusUi(status: string) {
           "border-[var(--border)] text-[var(--text)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/25",
       };
   }
-}
-
-function AdminOrderLineThumb({
-  imageUrl,
-  imagePending,
-  name,
-}: {
-  imageUrl: string | null;
-  imagePending: boolean;
-  name: string;
-}) {
-  const showPlaceholder = (imagePending ?? false) || !imageUrl?.trim();
-  return (
-    <span
-      className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--surface)]"
-      title={name}
-    >
-      {showPlaceholder ? (
-        <span className="flex h-full w-full items-center justify-center bg-zinc-900/60 px-0.5 text-center text-[10px] font-medium leading-tight text-zinc-500">
-          Sin foto
-        </span>
-      ) : (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          src={imageUrl!.trim()}
-          alt=""
-          className="h-full w-full object-cover"
-          loading="lazy"
-          decoding="async"
-        />
-      )}
-    </span>
-  );
 }
 
 function filterChipClass(filterKey: (typeof FILTERS)[number], selected: boolean): string {
@@ -428,17 +391,10 @@ export default function AdminPedidosPage() {
                 ) : null}
               </div>
             </div>
-            <ul className="mt-4 space-y-2 border-t border-[var(--border)] pt-4 text-sm text-[var(--muted)]">
+            <ul className="mt-4 space-y-1 border-t border-[var(--border)] pt-4 text-sm text-[var(--muted)]">
               {o.items.map((it, i) => (
-                <li key={`${it.product.id}-${i}`} className="flex items-center gap-3">
-                  <AdminOrderLineThumb
-                    imageUrl={it.product.imageUrl}
-                    imagePending={it.product.imagePending}
-                    name={it.product.name}
-                  />
-                  <span className="min-w-0 flex-1 leading-snug">
-                    {it.product.name} × {it.quantity} — {formatCents(it.priceCents * it.quantity)}
-                  </span>
+                <li key={i}>
+                  {it.product.name} × {it.quantity} — {formatCents(it.priceCents * it.quantity)}
                 </li>
               ))}
             </ul>
@@ -452,17 +408,10 @@ export default function AdminPedidosPage() {
                 <ul className="mt-3 space-y-2">
                   {(itemDrafts[o.id] ?? o.items.map((it) => ({ productId: it.product.id, quantity: it.quantity }))).map(
                     (line, idx) => {
-                      const lineProduct = o.items.find((it) => it.product.id === line.productId)?.product;
-                      const name = lineProduct?.name ?? line.productId;
+                      const name =
+                        o.items.find((it) => it.product.id === line.productId)?.product.name ?? line.productId;
                       return (
                         <li key={`${line.productId}-${idx}`} className="flex flex-wrap items-center gap-2 text-sm">
-                          {lineProduct ? (
-                            <AdminOrderLineThumb
-                              imageUrl={lineProduct.imageUrl}
-                              imagePending={lineProduct.imagePending}
-                              name={name}
-                            />
-                          ) : null}
                           <span className="min-w-0 flex-1 truncate text-[var(--text)]">{name}</span>
                           <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
                             Cant.
