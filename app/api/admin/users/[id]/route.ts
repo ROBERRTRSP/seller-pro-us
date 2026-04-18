@@ -7,6 +7,43 @@ import { getSessionFromCookie } from "@/lib/auth";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+/** Solo cuentas cliente; no auto-eliminación. Los pedidos se eliminan en cascada (Order → OrderItem). */
+export async function DELETE(_req: Request, ctx: Ctx) {
+  const gate = await requireRole(Role.ADMIN);
+  if ("error" in gate && gate.error) return gate.error;
+
+  const session = await getSessionFromCookie();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await ctx.params;
+
+  if (id === session.sub) {
+    return NextResponse.json({ error: "No puedes eliminar tu propia cuenta." }, { status: 400 });
+  }
+
+  const existing = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, role: true, _count: { select: { orders: true } } },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (existing.role !== Role.CLIENT) {
+    return NextResponse.json(
+      { error: "Solo se pueden eliminar cuentas de cliente. Los administradores no se eliminan desde aquí." },
+      { status: 400 },
+    );
+  }
+
+  await prisma.user.delete({ where: { id } });
+  return NextResponse.json({
+    ok: true,
+    deletedOrders: existing._count.orders,
+  });
+}
+
 export async function PATCH(req: Request, ctx: Ctx) {
   const gate = await requireRole(Role.ADMIN);
   if ("error" in gate && gate.error) return gate.error;

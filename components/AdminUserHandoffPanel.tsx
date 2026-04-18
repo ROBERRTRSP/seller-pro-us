@@ -1,7 +1,9 @@
 "use client";
 
+import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { formatCents } from "@/lib/money";
+import type { AdminUserListRow } from "@/lib/admin-user-types";
 import { APP_LOCALE, formatOrderStatus } from "@/lib/us-locale";
 
 export type HandoffPayload = {
@@ -24,13 +26,44 @@ export type HandoffPayload = {
   shopMagicExpiresAt: string | null;
 };
 
-export function AdminUserHandoffPanel({
-  userId,
-  onClose,
-}: {
-  userId: string;
+type UserPatch = Partial<{
+  name: string;
+  role: "CLIENT" | "ADMIN";
+  email: string;
+  password: string;
+  phone: string | null;
+  address: string | null;
+  businessLicense: string | null;
+  tobaccoLicense: string | null;
+}>;
+
+type Props = {
+  user: AdminUserListRow;
   onClose: () => void;
-}) {
+  onReload: () => Promise<void>;
+  updateUser: (id: string, patch: UserPatch) => Promise<boolean>;
+  enterAsClient: (userId: string) => void;
+  deleteClientAccount: (u: AdminUserListRow) => void;
+  pwdDraft: Record<string, string>;
+  setPwdDraft: Dispatch<SetStateAction<Record<string, string>>>;
+  pwdSaving: string | null;
+  savePassword: (userId: string) => void;
+  deletingId: string | null;
+};
+
+export function AdminUserHandoffPanel({
+  user,
+  onClose,
+  onReload,
+  updateUser,
+  enterAsClient,
+  deleteClientAccount,
+  pwdDraft,
+  setPwdDraft,
+  pwdSaving,
+  savePassword,
+  deletingId,
+}: Props) {
   const [data, setData] = useState<HandoffPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,7 +74,7 @@ export function AdminUserHandoffPanel({
     setLoading(true);
     setError("");
     try {
-      const r = await fetch(`/api/admin/users/${userId}/handoff`, { method: "POST" });
+      const r = await fetch(`/api/admin/users/${user.id}/handoff`, { method: "POST" });
       const j = (await r.json().catch(() => null)) as HandoffPayload | { error?: string } | null;
       if (!r.ok) {
         setError(typeof (j as { error?: string })?.error === "string" ? (j as { error: string }).error : "Error al cargar");
@@ -57,7 +90,7 @@ export function AdminUserHandoffPanel({
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [user.id]);
 
   useEffect(() => {
     void load();
@@ -73,7 +106,7 @@ export function AdminUserHandoffPanel({
     void import("qrcode")
       .then((QR) =>
         QR.default.toDataURL(url, {
-          width: 220,
+          width: 200,
           margin: 2,
           color: { dark: "#0a0a0a", light: "#ffffff" },
         }),
@@ -101,147 +134,250 @@ export function AdminUserHandoffPanel({
     }
   }
 
+  const uid = user.id;
+
   return (
     <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-lg">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <h2 className="text-lg font-semibold text-[var(--text)]">QR e informe de cuenta</h2>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => void load()}
-            className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-50"
-          >
-            Regenerar enlace
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] hover:bg-[var(--bg)]"
-          >
-            Cerrar
-          </button>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] pb-4">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--text)]">Editar usuario</h2>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            Cambios al salir de cada campo o con Guardar en contraseña. Cierra cuando termines.
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] hover:bg-[var(--bg)]"
+        >
+          Cerrar
+        </button>
       </div>
 
-      {loading ? <p className="mt-4 text-sm text-[var(--muted)]">Cargando…</p> : null}
-      {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
-
-      {data && !loading ? (
-        <div className="mt-5 grid gap-8 lg:grid-cols-[auto,1fr] lg:items-start">
-          <div className="flex flex-col items-center gap-3">
-            {data.shopMagicUrl && qrDataUrl ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrDataUrl}
-                  alt="Código QR para iniciar sesión en la tienda"
-                  width={220}
-                  height={220}
-                  className="rounded-lg border border-[var(--border)] bg-white p-2"
+      <div className="mt-5 space-y-6">
+        <section className="space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Identidad y acceso</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs text-[var(--muted)]">
+              Nombre
+              <input
+                key={`name-${uid}-${user.name}`}
+                defaultValue={user.name}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== user.name) void updateUser(uid, { name: v }).then((ok) => ok && void onReload());
+                }}
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]"
+              />
+            </label>
+            <label className="block text-xs text-[var(--muted)]">
+              Correo
+              <input
+                type="email"
+                key={`email-${uid}-${user.email}`}
+                defaultValue={user.email}
+                onBlur={(e) => {
+                  const v = e.target.value.trim().toLowerCase();
+                  if (v && v !== user.email) void updateUser(uid, { email: v }).then((ok) => ok && void onReload());
+                }}
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 font-mono text-sm text-[var(--text)]"
+              />
+            </label>
+            <label className="block text-xs text-[var(--muted)]">
+              Rol
+              <select
+                value={user.role}
+                onChange={(e) =>
+                  void updateUser(uid, { role: e.target.value as "CLIENT" | "ADMIN" }).then((ok) => ok && void onReload())
+                }
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+              >
+                <option value="CLIENT">Cliente</option>
+                <option value="ADMIN">Administrador</option>
+              </select>
+            </label>
+            <div>
+              <span className="text-xs text-[var(--muted)]">Nueva contraseña</span>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Mín. 6 caracteres"
+                  value={pwdDraft[uid] ?? ""}
+                  onChange={(e) => setPwdDraft((d) => ({ ...d, [uid]: e.target.value }))}
+                  className="min-w-[140px] flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
                 />
-                <p className="max-w-[260px] text-center text-xs text-[var(--muted)]">
-                  El cliente escanea el código e inicia sesión en la tienda (pedidos y perfil). Válido ~15 minutos.
-                </p>
-                {data.shopMagicExpiresAt ? (
-                  <p className="text-center text-[10px] text-[var(--muted)]">
-                    Caduca:{" "}
-                    {new Date(data.shopMagicExpiresAt).toLocaleString(APP_LOCALE, {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
-                  </p>
-                ) : null}
                 <button
                   type="button"
-                  onClick={() => void copyLink()}
-                  className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
+                  disabled={pwdSaving === uid}
+                  onClick={() => void savePassword(uid)}
+                  className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-50"
                 >
-                  {copied ? "Copiado" : "Copiar enlace"}
+                  {pwdSaving === uid ? "…" : "Guardar contraseña"}
                 </button>
-              </>
-            ) : (
-              <div className="flex max-w-xs flex-col items-center rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg)] px-6 py-8 text-center text-sm text-[var(--muted)]">
-                <p>No se genera QR para cuentas de administrador.</p>
-                <p className="mt-2 text-xs">Usa el panel de administración con tu sesión de admin.</p>
               </div>
-            )}
-          </div>
-
-          <div className="min-w-0 space-y-4">
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                Informe de cuenta
-              </h3>
-              <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-[var(--muted)]">Nombre</dt>
-                  <dd className="font-medium text-[var(--text)]">{data.user.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-[var(--muted)]">Correo</dt>
-                  <dd className="break-all font-mono text-xs text-[var(--text)]">{data.user.email}</dd>
-                </div>
-                <div>
-                  <dt className="text-[var(--muted)]">Rol</dt>
-                  <dd className="text-[var(--text)]">
-                    {data.user.role === "CLIENT" ? "Cliente" : "Administrador"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[var(--muted)]">Alta</dt>
-                  <dd className="text-[var(--text)]">
-                    {new Date(data.user.createdAt).toLocaleDateString(APP_LOCALE, { dateStyle: "medium" })}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[var(--muted)]">Pedidos totales</dt>
-                  <dd className="text-2xl font-black text-[var(--accent)]">{data.orderCount}</dd>
-                </div>
-              </dl>
-            </div>
-
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                Pedidos recientes
-              </h3>
-              {data.recentOrders.length === 0 ? (
-                <p className="mt-2 text-sm text-[var(--muted)]">Sin pedidos aún.</p>
-              ) : (
-                <div className="mt-2 overflow-x-auto rounded-lg border border-[var(--border)]">
-                  <table className="w-full min-w-[480px] text-left text-xs">
-                    <thead className="bg-[var(--bg)] text-[var(--muted)]">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">Fecha</th>
-                        <th className="px-3 py-2 font-medium">Estado</th>
-                        <th className="px-3 py-2 font-medium">Líneas</th>
-                        <th className="px-3 py-2 font-medium">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.recentOrders.map((o) => (
-                        <tr key={o.id} className="border-t border-[var(--border)]/60">
-                          <td className="px-3 py-2 text-[var(--text)]">
-                            {new Date(o.createdAt).toLocaleString(APP_LOCALE, {
-                              dateStyle: "short",
-                              timeStyle: "short",
-                            })}
-                          </td>
-                          <td className="px-3 py-2 text-[var(--text)]">{formatOrderStatus(o.status)}</td>
-                          <td className="px-3 py-2 text-[var(--text)]">{o.lineCount}</td>
-                          <td className="px-3 py-2 font-semibold text-[var(--text)]">
-                            {formatCents(o.totalCents)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </div>
           </div>
-        </div>
-      ) : null}
+        </section>
+
+        {user.role === "CLIENT" ? (
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Entrega y licencias</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs text-[var(--muted)] sm:col-span-2">
+                Teléfono
+                <input
+                  type="text"
+                  inputMode="tel"
+                  key={`phone-${uid}-${user.phone ?? ""}`}
+                  defaultValue={user.phone ?? ""}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    const prev = (user.phone ?? "").trim();
+                    if (v !== prev) void updateUser(uid, { phone: v || null }).then((ok) => ok && void onReload());
+                  }}
+                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-[var(--muted)] sm:col-span-2">
+                Dirección
+                <textarea
+                  key={`addr-${uid}-${user.address ?? ""}`}
+                  defaultValue={user.address ?? ""}
+                  rows={3}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    const prev = (user.address ?? "").trim();
+                    if (v !== prev) void updateUser(uid, { address: v || null }).then((ok) => ok && void onReload());
+                  }}
+                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-[var(--muted)]">
+                Business license
+                <input
+                  key={`bl-${uid}-${user.businessLicense ?? ""}`}
+                  defaultValue={user.businessLicense ?? ""}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    const prev = (user.businessLicense ?? "").trim();
+                    if (v !== prev) void updateUser(uid, { businessLicense: v || null }).then((ok) => ok && void onReload());
+                  }}
+                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-[var(--muted)]">
+                Tobacco license
+                <input
+                  key={`tl-${uid}-${user.tobaccoLicense ?? ""}`}
+                  defaultValue={user.tobaccoLicense ?? ""}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    const prev = (user.tobaccoLicense ?? "").trim();
+                    if (v !== prev) void updateUser(uid, { tobaccoLicense: v || null }).then((ok) => ok && void onReload());
+                  }}
+                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+          </section>
+        ) : null}
+
+        <section className="flex flex-wrap gap-2 border-t border-[var(--border)] pt-4">
+          {user.role === "CLIENT" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => enterAsClient(uid)}
+                className="rounded-lg border border-[var(--accent)]/50 bg-[var(--accent)]/15 px-4 py-2 text-sm font-medium text-[var(--accent)] hover:bg-[var(--accent)]/25"
+              >
+                Abrir tienda como este cliente
+              </button>
+              <button
+                type="button"
+                disabled={deletingId === uid}
+                onClick={() => deleteClientAccount(user)}
+                className="rounded-lg border border-red-500/45 bg-red-950/30 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-950/50 disabled:opacity-50"
+              >
+                {deletingId === uid ? "Eliminando…" : "Eliminar cuenta"}
+              </button>
+            </>
+          ) : (
+            <p className="text-sm text-[var(--muted)]">Los administradores no tienen sesión en la tienda ni QR.</p>
+          )}
+        </section>
+
+        {user.role === "CLIENT" ? (
+          <section className="border-t border-[var(--border)] pt-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">QR · enlace mágico (~15 min)</h3>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => void load()}
+                className="rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--muted)] hover:border-[var(--accent)] disabled:opacity-50"
+              >
+                Regenerar
+              </button>
+            </div>
+            {loading ? <p className="mt-3 text-sm text-[var(--muted)]">Cargando QR…</p> : null}
+            {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+            {data && !loading && data.shopMagicUrl && qrDataUrl ? (
+              <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrDataUrl} alt="" width={200} height={200} className="rounded-lg border border-[var(--border)] bg-white p-2" />
+                <div className="max-w-md space-y-2 text-xs text-[var(--muted)]">
+                  <p>El cliente escanea e inicia sesión en la tienda.</p>
+                  {data.shopMagicExpiresAt ? (
+                    <p>
+                      Caduca:{" "}
+                      {new Date(data.shopMagicExpiresAt).toLocaleString(APP_LOCALE, {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void copyLink()}
+                    className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
+                  >
+                    {copied ? "Copiado" : "Copiar enlace"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {data && !loading && !data.shopMagicUrl ? (
+              <p className="mt-3 text-sm text-[var(--muted)]">No hay enlace (revisa AUTH_SECRET).</p>
+            ) : null}
+          </section>
+        ) : null}
+
+        <section className="border-t border-[var(--border)] pt-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+            Pedidos {data ? `(${data.orderCount})` : `(${user._count.orders})`}
+          </h3>
+          {loading ? (
+            <p className="mt-2 text-sm text-[var(--muted)]">…</p>
+          ) : data && data.recentOrders.length === 0 ? (
+            <p className="mt-2 text-sm text-[var(--muted)]">Sin pedidos aún.</p>
+          ) : data && data.recentOrders.length > 0 ? (
+            <ul className="mt-3 divide-y divide-[var(--border)]/60 rounded-lg border border-[var(--border)]">
+              {data.recentOrders.map((o) => (
+                <li key={o.id} className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm">
+                  <span className="text-[var(--text)]">
+                    {new Date(o.createdAt).toLocaleString(APP_LOCALE, { dateStyle: "short", timeStyle: "short" })} ·{" "}
+                    {formatOrderStatus(o.status)}
+                  </span>
+                  <span className="font-semibold text-[var(--text)]">{formatCents(o.totalCents)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-[var(--muted)]">—</p>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

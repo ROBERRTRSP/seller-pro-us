@@ -1,23 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminUserHandoffPanel } from "@/components/AdminUserHandoffPanel";
+import type { AdminUserListRow } from "@/lib/admin-user-types";
 import { ADMIN_FETCH_NETWORK, ADMIN_FETCH_TIMEOUT, adminFetchJson } from "@/lib/admin-client-fetch";
 import { APP_LOCALE } from "@/lib/us-locale";
 import { safeInternalPath } from "@/lib/safe-internal-path";
-
-type UserRow = {
-  id: string;
-  email: string;
-  name: string;
-  role: "CLIENT" | "ADMIN";
-  phone: string | null;
-  address: string | null;
-  businessLicense: string | null;
-  tobaccoLicense: string | null;
-  createdAt: string;
-  _count: { orders: number };
-};
 
 type UserPatch = Partial<{
   name: string;
@@ -30,8 +18,27 @@ type UserPatch = Partial<{
   tobaccoLicense: string | null;
 }>;
 
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function userInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const a = parts[0]?.[0];
+    const b = parts[parts.length - 1]?.[0];
+    if (a && b) return (a + b).toUpperCase();
+  }
+  const one = parts[0] ?? "?";
+  return one.slice(0, 2).toUpperCase();
+}
+
 export default function AdminUsuariosPage() {
-  const [list, setList] = useState<UserRow[]>([]);
+  const [list, setList] = useState<AdminUserListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
@@ -48,9 +55,12 @@ export default function AdminUsuariosPage() {
     tobaccoLicense: "",
   });
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [clientsOnly, setClientsOnly] = useState(false);
 
   async function load() {
-    const res = await adminFetchJson<UserRow[]>("/api/admin/users");
+    const res = await adminFetchJson<AdminUserListRow[]>("/api/admin/users");
     if (!res.ok) {
       if (res.error === ADMIN_FETCH_TIMEOUT) {
         setError("Tiempo de espera agotado. Comprueba el servidor e inténtalo de nuevo.");
@@ -131,6 +141,30 @@ export default function AdminUsuariosPage() {
     return true;
   }
 
+  async function deleteClientAccount(u: AdminUserListRow) {
+    if (u.role !== "CLIENT") return;
+    const n = u._count.orders;
+    const msg =
+      n > 0
+        ? `¿Eliminar la cuenta de «${u.name}» (${u.email})?\n\nSe borrarán también ${n} pedido(s) vinculados. Esta acción no se puede deshacer.`
+        : `¿Eliminar la cuenta de «${u.name}» (${u.email})?\n\nEsta acción no se puede deshacer.`;
+    if (!confirm(msg)) return;
+    setError("");
+    setDeletingId(u.id);
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "No se pudo eliminar la cuenta");
+        return;
+      }
+      if (selectedUserId === u.id) setSelectedUserId(null);
+      await load();
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   async function savePassword(userId: string) {
     const pwd = (pwdDraft[userId] ?? "").trim();
     if (pwd.length < 6) {
@@ -147,6 +181,20 @@ export default function AdminUsuariosPage() {
     }
   }
 
+  const selectedUser = selectedUserId ? list.find((u) => u.id === selectedUserId) : undefined;
+
+  const filteredList = useMemo(() => {
+    const q = normalizeSearchText(userSearch);
+    let rows = clientsOnly ? list.filter((u) => u.role === "CLIENT") : list;
+    if (!q) return rows;
+    return rows.filter((u) => {
+      const haystack = normalizeSearchText(`${u.name} ${u.email}`);
+      return haystack.includes(q);
+    });
+  }, [list, userSearch, clientsOnly]);
+
+  const clientCount = useMemo(() => list.filter((u) => u.role === "CLIENT").length, [list]);
+
   if (loading) {
     return <p className="text-[var(--muted)]">Cargando…</p>;
   }
@@ -154,16 +202,16 @@ export default function AdminUsuariosPage() {
   return (
     <div>
       <h1 className="text-2xl font-semibold">Usuarios</h1>
-      <p className="mt-1 text-sm text-[var(--muted)]">
-        Crea cuentas, edita <strong>nombre, correo y contraseña</strong>, cambia el rol o{" "}
-        <strong>abre la tienda como cliente</strong>. Los <strong>clientes ya creados</strong> pueden actualizar
-        teléfono, dirección y licencias en la tabla (al salir del campo se guarda). Toca una fila (fuera de campos y
-        botones) para ver <strong>código QR e informe</strong>.
+      <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
+        Crea cuentas nuevas aquí abajo. En cada <strong>cliente</strong>, bajo nombre y correo tienes{" "}
+        <strong>Editar cuenta</strong> (panel con datos, QR, pedidos, eliminar) y <strong>Ver tienda</strong> (entrar a
+        la tienda como ese usuario). Los <strong>administradores</strong> solo tienen el botón Editar al final de la
+        fila.
       </p>
       <p className="mt-1 text-xs text-[var(--muted)]">
-        Para crear cuenta de <strong>Cliente</strong>: teléfono, dirección, Business License y Tobacco License son
-        obligatorios.
+        Alta de <strong>Cliente</strong>: teléfono, dirección y ambas licencias obligatorios.
       </p>
+      {error ? <p className="mt-4 rounded-lg border border-red-500/35 bg-red-950/25 px-4 py-3 text-sm text-red-200">{error}</p> : null}
 
       <form
         onSubmit={createUser}
@@ -245,7 +293,6 @@ export default function AdminUsuariosPage() {
             className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
           />
         </div>
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
         <button
           type="submit"
           disabled={creating}
@@ -255,196 +302,203 @@ export default function AdminUsuariosPage() {
         </button>
       </form>
 
-      <div className="mt-10 overflow-x-auto rounded-xl border border-[var(--border)]">
-        <table className="w-full min-w-[1280px] text-left text-sm">
-          <thead className="border-b border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]">
-            <tr>
-              <th className="px-4 py-3 font-medium">Nombre</th>
-              <th className="px-4 py-3 font-medium">Correo</th>
-              <th className="min-w-[200px] px-4 py-3 font-medium">Nueva contraseña</th>
-              <th className="px-4 py-3 font-medium">Rol</th>
-              <th className="min-w-[120px] px-4 py-3 font-medium">Teléfono</th>
-              <th className="min-w-[180px] px-4 py-3 font-medium">Dirección</th>
-              <th className="min-w-[120px] px-4 py-3 font-medium">Business lic.</th>
-              <th className="min-w-[120px] px-4 py-3 font-medium">Tobacco lic.</th>
-              <th className="px-4 py-3 font-medium">Pedidos</th>
-              <th className="px-4 py-3 font-medium">Alta</th>
-              <th className="px-4 py-3 font-medium">Tienda</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((u) => (
-              <tr
-                key={u.id}
-                onClick={(e) => {
-                  if ((e.target as HTMLElement).closest("input,button,select,textarea")) return;
-                  setSelectedUserId(u.id);
-                }}
-                className={`cursor-pointer border-b border-[var(--border)]/60 last:border-0 hover:bg-[var(--bg)]/80 ${
-                  selectedUserId === u.id ? "bg-[var(--accent)]/10" : ""
-                }`}
+      <div className="mt-10 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
+        <div className="border-b border-[var(--border)] bg-[var(--bg)]/50 px-4 py-3 sm:px-5">
+          <h2 className="text-sm font-semibold text-[var(--text)]">Usuarios registrados</h2>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            {list.length} en total
+            {clientCount > 0 ? ` · ${clientCount} cliente${clientCount === 1 ? "" : "s"}` : null}
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--bg)]/35 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+          <div className="relative min-w-0 flex-1">
+            <label htmlFor="admin-usuarios-buscar" className="sr-only">
+              Buscar usuarios por nombre o correo
+            </label>
+            <span
+              className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[var(--muted)]"
+              aria-hidden
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
+            <input
+              id="admin-usuarios-buscar"
+              type="search"
+              enterKeyHint="search"
+              autoComplete="off"
+              placeholder="Buscar por nombre o correo…"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] py-2.5 pl-10 pr-10 text-sm text-[var(--text)] outline-none ring-[var(--accent)]/20 placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:ring-2"
+            />
+            {userSearch.trim() ? (
+              <button
+                type="button"
+                onClick={() => setUserSearch("")}
+                className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-lg px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
               >
-                <td className="px-4 py-3 align-top">
-                  <input
-                    defaultValue={u.name}
-                    key={`name-${u.id}-${u.name}`}
-                    placeholder="Nombre visible"
-                    onBlur={(e) => {
-                      const v = e.target.value.trim();
-                      if (v && v !== u.name) void updateUser(u.id, { name: v });
-                    }}
-                    className="w-full max-w-[160px] rounded border border-transparent bg-transparent px-1 py-0.5 hover:border-[var(--border)] focus:border-[var(--accent)]"
-                  />
-                </td>
-                <td className="px-4 py-3 align-top">
-                  <input
-                    type="email"
-                    defaultValue={u.email}
-                    key={`email-${u.id}-${u.email}`}
-                    onBlur={(e) => {
-                      const v = e.target.value.trim().toLowerCase();
-                      if (v && v !== u.email) void updateUser(u.id, { email: v });
-                    }}
-                    className="w-full max-w-[220px] rounded border border-transparent bg-transparent px-1 py-0.5 font-mono text-xs hover:border-[var(--border)] focus:border-[var(--accent)]"
-                  />
-                </td>
-                <td className="px-4 py-3 align-top">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder="Mín. 6 caracteres"
-                      value={pwdDraft[u.id] ?? ""}
-                      onChange={(e) => setPwdDraft((d) => ({ ...d, [u.id]: e.target.value }))}
-                      className="min-w-[120px] flex-1 rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs"
-                    />
-                    <button
-                      type="button"
-                      disabled={pwdSaving === u.id}
-                      onClick={() => void savePassword(u.id)}
-                      className="shrink-0 rounded border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-50"
-                    >
-                      {pwdSaving === u.id ? "…" : "Guardar"}
-                    </button>
-                  </div>
-                </td>
-                <td className="px-4 py-3 align-top">
-                  <select
-                    value={u.role}
-                    onChange={(e) =>
-                      void updateUser(u.id, { role: e.target.value as "CLIENT" | "ADMIN" })
-                    }
-                    className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1"
-                  >
-                    <option value="CLIENT">Cliente</option>
-                    <option value="ADMIN">Administrador</option>
-                  </select>
-                </td>
-                <td className="px-4 py-3 align-top">
-                  {u.role === "CLIENT" ? (
-                    <input
-                      type="text"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      defaultValue={u.phone ?? ""}
-                      key={`phone-${u.id}-${u.phone ?? ""}`}
-                      placeholder="Teléfono"
-                      onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        const prev = (u.phone ?? "").trim();
-                        if (v !== prev) void updateUser(u.id, { phone: v || null });
-                      }}
-                      className="w-full max-w-[140px] rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs"
-                    />
-                  ) : (
-                    <span className="text-xs text-[var(--muted)]">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 align-top">
-                  {u.role === "CLIENT" ? (
-                    <textarea
-                      defaultValue={u.address ?? ""}
-                      key={`addr-${u.id}-${u.address ?? ""}`}
-                      placeholder="Dirección"
-                      rows={2}
-                      onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        const prev = (u.address ?? "").trim();
-                        if (v !== prev) void updateUser(u.id, { address: v || null });
-                      }}
-                      className="w-full max-w-[220px] resize-y rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs"
-                    />
-                  ) : (
-                    <span className="text-xs text-[var(--muted)]">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 align-top">
-                  {u.role === "CLIENT" ? (
-                    <input
-                      type="text"
-                      defaultValue={u.businessLicense ?? ""}
-                      key={`bl-${u.id}-${u.businessLicense ?? ""}`}
-                      placeholder="Business License"
-                      onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        const prev = (u.businessLicense ?? "").trim();
-                        if (v !== prev) void updateUser(u.id, { businessLicense: v || null });
-                      }}
-                      className="w-full max-w-[140px] rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs"
-                    />
-                  ) : (
-                    <span className="text-xs text-[var(--muted)]">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 align-top">
-                  {u.role === "CLIENT" ? (
-                    <input
-                      type="text"
-                      defaultValue={u.tobaccoLicense ?? ""}
-                      key={`tl-${u.id}-${u.tobaccoLicense ?? ""}`}
-                      placeholder="Tobacco License"
-                      onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        const prev = (u.tobaccoLicense ?? "").trim();
-                        if (v !== prev) void updateUser(u.id, { tobaccoLicense: v || null });
-                      }}
-                      className="w-full max-w-[140px] rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs"
-                    />
-                  ) : (
-                    <span className="text-xs text-[var(--muted)]">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 align-top text-[var(--muted)]">{u._count.orders}</td>
-                <td className="px-4 py-3 align-top text-xs text-[var(--muted)]">
-                  {new Date(u.createdAt).toLocaleDateString(APP_LOCALE, { dateStyle: "medium" })}
-                </td>
-                <td className="px-4 py-3 align-top">
-                  {u.role === "CLIENT" ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void enterAsClient(u.id);
-                      }}
-                      className="whitespace-nowrap rounded-md border border-[var(--accent)]/50 bg-[var(--accent)]/15 px-2.5 py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-[var(--accent)]/25"
-                    >
-                      Ver tienda como este usuario
-                    </button>
-                  ) : (
-                    <span className="text-xs text-[var(--muted)]">—</span>
-                  )}
-                </td>
+                Limpiar
+              </button>
+            ) : null}
+          </div>
+          <label className="flex shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border border-[var(--border)]/80 bg-[var(--surface)] px-3 py-2 text-xs text-[var(--muted)] hover:border-[var(--accent)]/40">
+            <input
+              type="checkbox"
+              checked={clientsOnly}
+              onChange={(e) => setClientsOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-[var(--border)] bg-[var(--bg)] text-[var(--accent)] focus:ring-[var(--accent)]"
+            />
+            <span>Solo clientes</span>
+          </label>
+        </div>
+        <p className="border-b border-[var(--border)]/80 px-4 py-2 text-xs text-[var(--muted)] sm:px-5">
+          {filteredList.length === list.length && !clientsOnly && !userSearch.trim() ? (
+            <span>Mostrando todos los usuarios.</span>
+          ) : (
+            <span>
+              Mostrando <strong className="text-[var(--text)]">{filteredList.length}</strong>
+              {filteredList.length !== list.length ? (
+                <>
+                  {" "}
+                  de {list.length}
+                </>
+              ) : null}
+              {clientsOnly ? " (solo clientes)" : null}
+              {userSearch.trim() ? " · filtro de búsqueda activo" : null}
+            </span>
+          )}
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[680px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                <th className="min-w-[260px] px-4 py-3 pl-5 sm:px-5">Perfil</th>
+                <th className="px-3 py-3">Rol</th>
+                <th className="px-3 py-3">Pedidos</th>
+                <th className="px-3 py-3">Alta</th>
+                <th className="px-4 py-3 pr-5 text-right sm:px-5">Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)]/70">
+              {filteredList.map((u) => (
+                <tr key={u.id} className="transition-colors hover:bg-[var(--accent)]/[0.04]">
+                  <td className="max-w-[min(90vw,380px)] px-4 py-4 pl-5 align-top sm:px-5">
+                    <div className="flex gap-3">
+                      <div
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--accent)]/35 via-[var(--accent)]/15 to-transparent text-sm font-bold tracking-tight text-[var(--accent)] shadow-sm ring-1 ring-[var(--accent)]/25"
+                        aria-hidden
+                      >
+                        {userInitials(u.name)}
+                      </div>
+                      <div className="min-w-0 flex-1 rounded-xl border border-[var(--border)]/90 bg-[var(--bg)]/60 px-3 py-2.5 shadow-sm">
+                        <p className="font-semibold leading-snug text-[var(--text)]">{u.name}</p>
+                        <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-[var(--muted)]">
+                          {u.email}
+                        </p>
+                        {u.role === "CLIENT" ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedUserId(u.id)}
+                              className={`touch-manipulation rounded-lg px-3 py-2 text-xs font-semibold shadow-sm transition ${
+                                selectedUserId === u.id
+                                  ? "bg-[var(--accent)] text-white ring-2 ring-[var(--accent)]/40"
+                                  : "border border-[var(--border)] bg-[var(--surface)] text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/10"
+                              }`}
+                            >
+                              Editar cuenta
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void enterAsClient(u.id)}
+                              className="touch-manipulation rounded-lg border border-emerald-500/35 bg-emerald-950/35 px-3 py-2 text-xs font-semibold text-emerald-200/95 shadow-sm hover:bg-emerald-950/55"
+                            >
+                              Ver tienda
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-3 py-4 align-middle">
+                    {u.role === "CLIENT" ? (
+                      <span className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-950/40 px-2.5 py-1 text-xs font-medium text-sky-100/95">
+                        Cliente
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full border border-amber-500/35 bg-amber-950/35 px-2.5 py-1 text-xs font-medium text-amber-100/95">
+                        Admin
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-4 align-middle">
+                    <span className="inline-flex min-w-[2rem] items-center justify-center rounded-lg bg-[var(--bg)] px-2 py-1 text-center text-sm font-semibold tabular-nums text-[var(--text)] ring-1 ring-[var(--border)]/80">
+                      {u._count.orders}
+                    </span>
+                  </td>
+                  <td className="px-3 py-4 align-middle text-xs text-[var(--muted)]">
+                    <time dateTime={u.createdAt}>
+                      {new Date(u.createdAt).toLocaleDateString(APP_LOCALE, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </time>
+                  </td>
+                  <td className="px-4 py-4 pr-5 text-right align-middle sm:px-5">
+                    {u.role === "ADMIN" ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUserId(u.id)}
+                        className={`touch-manipulation rounded-lg px-3 py-2 text-xs font-semibold shadow-sm transition ${
+                          selectedUserId === u.id
+                            ? "bg-[var(--accent)] text-white ring-2 ring-[var(--accent)]/40"
+                            : "border border-[var(--border)] bg-[var(--bg)] text-[var(--accent)] hover:border-[var(--accent)]/60"
+                        }`}
+                      >
+                        Editar
+                      </button>
+                    ) : (
+                      <span
+                        className="inline-block rounded-lg bg-[var(--bg)]/50 px-2 py-1 text-[11px] text-[var(--muted)]/70 ring-1 ring-[var(--border)]/40"
+                        title="Usa los botones del perfil"
+                      >
+                        En perfil
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filteredList.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-sm text-[var(--muted)]">
+                    {list.length === 0
+                      ? "No hay usuarios."
+                      : "Ningún usuario coincide con el filtro. Prueba otras palabras o quita «Solo clientes»."}
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {selectedUserId ? (
+      {selectedUser ? (
         <AdminUserHandoffPanel
-          key={selectedUserId}
-          userId={selectedUserId}
+          key={selectedUser.id}
+          user={selectedUser}
           onClose={() => setSelectedUserId(null)}
+          onReload={load}
+          updateUser={updateUser}
+          enterAsClient={enterAsClient}
+          deleteClientAccount={deleteClientAccount}
+          pwdDraft={pwdDraft}
+          setPwdDraft={setPwdDraft}
+          pwdSaving={pwdSaving}
+          savePassword={savePassword}
+          deletingId={deletingId}
         />
       ) : null}
     </div>
