@@ -240,7 +240,7 @@ export default function TiendaPage() {
   }, [visibleProducts]);
 
   const topSellers = useMemo(() => {
-    return [...products].sort(compareCatalog).slice(0, 10);
+    return [...products].sort(compareCatalog).slice(0, 50);
   }, [products]);
 
   if (loading) {
