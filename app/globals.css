@@ -20,9 +20,10 @@ body {
 }
 
 @media print {
+  /* Facturas / pedidos: una sola hoja A4 cuando sea posible (zoom vía JS + tipografía compacta) */
   @page {
-    margin: 12mm;
-    size: auto;
+    margin: 5mm;
+    size: A4 portrait;
   }
 
   html,
@@ -58,9 +59,23 @@ body {
     border-bottom: 1px solid #000 !important;
   }
 
+  /* Factura compacta (contenedor .print-invoice-fit-root) */
+  .print-invoice-fit-root .print-table th,
+  .print-invoice-fit-root .print-table td {
+    padding: 2px 5px !important;
+    font-size: 8pt !important;
+    line-height: 1.15 !important;
+    vertical-align: middle !important;
+  }
+
+  .print-invoice-fit-root .print-table thead th {
+    padding: 3px 5px !important;
+    font-size: 8pt !important;
+  }
+
   /* Menos márgenes del layout al imprimir pedidos */
   .min-h-screen > main {
-    padding: 0.75rem !important;
+    padding: 0.35rem !important;
     max-width: none !important;
   }
 }
