@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { adminFetchJson } from "@/lib/admin-client-fetch";
 import { formatCents } from "@/lib/money";
 import { ProductPhotoUpload } from "@/components/ProductPhotoUpload";
@@ -80,7 +81,7 @@ function normalizeSearchText(value: string) {
     .trim();
 }
 
-export default function AdminProductosPage() {
+function AdminProductosPageContent() {
   const [list, setList] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,6 +121,21 @@ export default function AdminProductosPage() {
   const [catalogTogglingId, setCatalogTogglingId] = useState<string | null>(null);
   const [catalogError, setCatalogError] = useState("");
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const categoryFilterId = (searchParams.get("categoria") ?? "").trim();
+
+  const categoryFilterName = useMemo(() => {
+    if (!categoryFilterId) return "";
+    return categories.find((c) => c.id === categoryFilterId)?.name ?? "";
+  }, [categories, categoryFilterId]);
+
+  const inCategoryCount = useMemo(() => {
+    if (!categoryFilterId) return list.length;
+    return list.filter((p) => p.category?.id === categoryFilterId).length;
+  }, [list, categoryFilterId]);
+
   const suggestedNewProductSale = useMemo(() => {
     const c = parseCostDollarsToCents(form.costDollars);
     if (c == null) return null;
@@ -136,19 +152,22 @@ export default function AdminProductosPage() {
 
   const filteredList = useMemo(() => {
     const q = normalizeSearchText(listSearch);
-    const base =
-      !q
-        ? list
-        : list.filter((p) => {
-            const haystack = normalizeSearchText(
-              `${p.name} ${p.description} ${p.category?.name ?? ""} ${p.promoBadge ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""} ${p.brand ?? ""} ${p.sourceUrl ?? ""}`,
-            );
-            return haystack.includes(q);
-          });
+    let base = list;
+    if (categoryFilterId) {
+      base = base.filter((p) => p.category?.id === categoryFilterId);
+    }
+    if (q) {
+      base = base.filter((p) => {
+        const haystack = normalizeSearchText(
+          `${p.name} ${p.description} ${p.category?.name ?? ""} ${p.promoBadge ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""} ${p.brand ?? ""} ${p.sourceUrl ?? ""}`,
+        );
+        return haystack.includes(q);
+      });
+    }
     if (!editingId || base.some((p) => p.id === editingId)) return base;
     const current = list.find((p) => p.id === editingId);
     return current ? [current, ...base] : base;
-  }, [list, listSearch, editingId]);
+  }, [list, listSearch, editingId, categoryFilterId]);
 
   async function load() {
     const [pr, cr] = await Promise.all([
@@ -389,6 +408,25 @@ export default function AdminProductosPage() {
         .
       </p>
 
+      {categoryFilterId ? (
+        <div className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--accent)]/35 bg-[var(--accent)]/10 px-4 py-3 text-sm text-[var(--text)]">
+          <span>
+            Lista filtrada:{" "}
+            <strong>{categoryFilterName || "categoría (id no reconocido)"}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => router.replace(pathname)}
+            className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--bg)]"
+          >
+            Ver todos los productos
+          </button>
+          <Link href="/admin/categorias" className="text-xs font-medium text-[var(--accent)] hover:underline">
+            Ir a categorías
+          </Link>
+        </div>
+      ) : null}
+
       <form
         onSubmit={createProduct}
         className="mt-8 space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
@@ -606,7 +644,13 @@ export default function AdminProductosPage() {
           <p className="mt-2 text-xs text-[var(--muted)]">
             {filteredList.length === 0
               ? "Ningún resultado."
-              : `Mostrando ${filteredList.length} de ${list.length} productos.`}
+              : `Mostrando ${filteredList.length} de ${inCategoryCount} productos${categoryFilterId ? " en esta categoría" : ""}.`}
+          </p>
+        ) : categoryFilterId ? (
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            {inCategoryCount === 0
+              ? "Ningún producto en esta categoría."
+              : `${inCategoryCount} producto${inCategoryCount === 1 ? "" : "s"} en «${categoryFilterName || "esta categoría"}».`}
           </p>
         ) : (
           <p className="mt-2 text-xs text-[var(--muted)]">{list.length} productos en total.</p>
@@ -924,5 +968,13 @@ export default function AdminProductosPage() {
         ))}
       </ul>
     </div>
+  );
+}
+
+export default function AdminProductosPage() {
+  return (
+    <Suspense fallback={<p className="text-[var(--muted)]">Cargando…</p>}>
+      <AdminProductosPageContent />
+    </Suspense>
   );
 }

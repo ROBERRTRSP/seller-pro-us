@@ -36,6 +36,7 @@ function buildSecurityHeaders(): { key: string; value: string }[] {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https: blob:",
     "font-src 'self' data:",
+    "worker-src 'self'",
     "connect-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",

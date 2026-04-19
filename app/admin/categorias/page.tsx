@@ -166,16 +166,25 @@ export default function AdminCategoriasPage() {
             {list.map((c) => (
               <tr key={c.id} className="border-b border-[var(--border)]/60 last:border-0">
                 <td className="px-4 py-3">
-                  <input
-                    defaultValue={c.name}
-                    key={`n-${c.id}-${c.name}`}
-                    maxLength={MAX_CATEGORY_LEN}
-                    onBlur={(e) => {
-                      const v = e.target.value.trim().slice(0, MAX_CATEGORY_LEN);
-                      if (v && v !== c.name) void updateRow(c.id, { name: v });
-                    }}
-                    className="w-full max-w-[280px] rounded border border-transparent bg-transparent px-1 py-0.5 hover:border-[var(--border)] focus:border-[var(--accent)]"
-                  />
+                  <div className="flex max-w-[min(100%,380px)] flex-wrap items-center gap-2">
+                    <input
+                      defaultValue={c.name}
+                      key={`n-${c.id}-${c.name}`}
+                      maxLength={MAX_CATEGORY_LEN}
+                      onBlur={(e) => {
+                        const v = e.target.value.trim().slice(0, MAX_CATEGORY_LEN);
+                        if (v && v !== c.name) void updateRow(c.id, { name: v });
+                      }}
+                      className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 hover:border-[var(--border)] focus:border-[var(--accent)]"
+                    />
+                    <Link
+                      href={`/admin/productos?categoria=${encodeURIComponent(c.id)}`}
+                      className="shrink-0 whitespace-nowrap rounded-md border border-[var(--accent)]/45 bg-[var(--accent)]/15 px-2 py-1 text-[11px] font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/25"
+                      title="Ver solo productos de esta categoría"
+                    >
+                      Ver productos
+                    </Link>
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <input
@@ -189,7 +198,18 @@ export default function AdminCategoriasPage() {
                     }}
                   />
                 </td>
-                <td className="px-4 py-3 text-[var(--muted)]">{c._count.products}</td>
+                <td className="px-4 py-3">
+                  <Link
+                    href={`/admin/productos?categoria=${encodeURIComponent(c.id)}`}
+                    className="inline-flex items-center gap-1 font-semibold tabular-nums text-[var(--accent)] hover:underline"
+                    title="Ver productos de esta categoría"
+                  >
+                    {c._count.products}
+                    <span aria-hidden className="text-[11px] opacity-80">
+                      →
+                    </span>
+                  </Link>
+                </td>
                 <td className="px-4 py-3">
                   <button
                     type="button"

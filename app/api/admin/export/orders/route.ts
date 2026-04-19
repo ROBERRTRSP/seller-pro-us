@@ -1,19 +1,28 @@
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
 import { resolveOrderContact } from "@/lib/order-contact-resolved";
+import { parseOrderCreatedRangeQuery } from "@/lib/order-created-range";
 
 function csvEscape(s: string) {
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const gate = await requireRole(Role.ADMIN);
   if ("error" in gate && gate.error) return gate.error;
 
+  const { searchParams } = new URL(req.url);
+  const createdRange = parseOrderCreatedRangeQuery(
+    searchParams.get("from"),
+    searchParams.get("to"),
+  );
+
   const orders = await prisma.order.findMany({
+    where: createdRange ? { createdAt: createdRange } : {},
     orderBy: { createdAt: "desc" },
     include: {
       user: {

@@ -5,6 +5,7 @@ import { SellerProMark } from "@/components/SellerProLogo";
 import { getImpersonationContext, getSessionFromCookie } from "@/lib/auth";
 import { getSiteSettingsPublic } from "@/lib/site-settings";
 import { mergeSiteSettingsRow } from "@/lib/site-settings-defaults";
+import { AdminOfflineSupport } from "@/components/AdminOfflineSupport";
 
 /** Lee cookies/sesión: no puede prerender estático en build (Vercel). */
 export const dynamic = "force-dynamic";
@@ -137,6 +138,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </span>
           </div>
         ) : null}
+
+        <AdminOfflineSupport />
 
         <main className="mx-auto w-full max-w-6xl flex-1 overflow-y-auto px-4 py-6 md:max-w-none md:px-8 md:py-8 lg:px-10">
           <div className="mx-auto max-w-[1100px]">{children}</div>
