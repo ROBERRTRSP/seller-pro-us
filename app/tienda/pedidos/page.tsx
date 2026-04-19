@@ -6,11 +6,12 @@ import { useRouter } from "next/navigation";
 import { formatCents } from "@/lib/money";
 import { APP_LOCALE, formatCustomerOrderStatus } from "@/lib/us-locale";
 import { clientCanEditOrCancelOrder } from "@/lib/order-client-actions";
+import { productCatalogImageVisible } from "@/lib/product-image";
 
 type OrderItem = {
   quantity: number;
   priceCents: number;
-  product: { id: string; name: string };
+  product: { id: string; name: string; imageUrl: string | null; imagePending: boolean };
 };
 
 type Order = {
@@ -145,12 +146,35 @@ export default function PedidosClientePage() {
                 ) : o.status === "PENDIENTE" && o.acceptedAt ? (
                   <p className="mt-1 text-xs text-neutral-600">La tienda aceptó este pedido; ya no se puede modificar.</p>
                 ) : null}
-                <ul className="mt-3 space-y-1 text-sm text-neutral-600">
-                  {o.items.map((it, i) => (
-                    <li key={i}>
-                      {it.product.name} × {it.quantity} — {formatCents(it.priceCents * it.quantity)}
-                    </li>
-                  ))}
+                <ul className="mt-3 space-y-2 text-sm text-neutral-600">
+                  {o.items.map((it, i) => {
+                    const showImg = productCatalogImageVisible(
+                      it.product.imagePending,
+                      it.product.imageUrl,
+                    );
+                    return (
+                      <li key={i} className="flex items-center gap-3">
+                        <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50">
+                          {showImg ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={it.product.imageUrl!}
+                              alt=""
+                              className="h-full w-full object-contain p-0.5"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center px-0.5 text-center text-[9px] font-medium leading-tight text-amber-800">
+                              Foto pendiente
+                            </span>
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          {it.product.name} × {it.quantity} — {formatCents(it.priceCents * it.quantity)}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
                 {canEdit ? (
                   <div className="mt-4 flex flex-col gap-2 border-t border-neutral-100 pt-4 sm:flex-row sm:flex-wrap">

@@ -21,7 +21,7 @@ export default async function AdminImprimirPedidoPage({ params }: Props) {
           address: true,
         },
       },
-      items: { include: { product: { select: { name: true } } } },
+      items: { include: { product: { select: { name: true, imageUrl: true, imagePending: true } } } },
     },
   });
   if (!order) notFound();
@@ -86,9 +86,31 @@ export default async function AdminImprimirPedidoPage({ params }: Props) {
           <tbody>
             {order.items.map((it) => {
               const line = it.priceCents * it.quantity;
+              const noImg =
+                Boolean(it.product.imagePending) ||
+                !it.product.imageUrl ||
+                String(it.product.imageUrl).trim() === "";
               return (
                 <tr key={it.id} className="border-b border-[var(--border)]/60 print:border-neutral-300">
-                  <td className="py-2.5">{it.product.name}</td>
+                  <td className="py-2.5 align-middle">
+                    <div className="flex items-center gap-2">
+                      <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded border border-neutral-600/40 bg-zinc-900/40 print:h-10 print:w-10 print:border-neutral-400">
+                        {noImg ? (
+                          <span className="flex h-full w-full items-center justify-center px-0.5 text-center text-[8px] leading-tight text-zinc-500 print:text-neutral-600">
+                            Sin foto
+                          </span>
+                        ) : (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={String(it.product.imageUrl).trim()}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        )}
+                      </span>
+                      <span className="min-w-0">{it.product.name}</span>
+                    </div>
+                  </td>
                   <td className="py-2.5 text-right tabular-nums">{it.quantity}</td>
                   <td className="py-2.5 text-right tabular-nums text-[var(--muted)] print:text-neutral-700">
                     {formatCents(it.priceCents)}

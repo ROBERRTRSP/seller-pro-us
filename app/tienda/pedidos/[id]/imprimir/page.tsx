@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { resolveOrderContact } from "@/lib/order-contact-resolved";
 import { formatCents } from "@/lib/money";
 import { PrintToolbar } from "@/components/PrintToolbar";
+import { productCatalogImageVisible } from "@/lib/product-image";
 import { formatDateTimeUs, formatOrderStatus } from "@/lib/us-locale";
 
 type Props = { params: Promise<{ id: string }> };
@@ -25,7 +26,7 @@ export default async function ClienteImprimirPedidoPage({ params }: Props) {
           address: true,
         },
       },
-      items: { include: { product: { select: { name: true } } } },
+      items: { include: { product: { select: { name: true, imageUrl: true, imagePending: true } } } },
     },
   });
   if (!order) notFound();
@@ -90,9 +91,28 @@ export default async function ClienteImprimirPedidoPage({ params }: Props) {
           <tbody>
             {order.items.map((it) => {
               const line = it.priceCents * it.quantity;
+              const showImg = productCatalogImageVisible(it.product.imagePending, it.product.imageUrl);
               return (
                 <tr key={it.id} className="border-b border-[var(--border)]/60 print:border-neutral-300">
-                  <td className="py-2.5">{it.product.name}</td>
+                  <td className="py-2.5 align-middle">
+                    <div className="flex items-center gap-2">
+                      <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded border border-neutral-600/40 bg-zinc-900/30 print:border-neutral-400">
+                        {showImg ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={it.product.imageUrl!}
+                            alt=""
+                            className="h-full w-full object-contain p-px"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center px-0.5 text-center text-[8px] leading-tight text-zinc-500 print:text-neutral-600">
+                            Pend.
+                          </span>
+                        )}
+                      </span>
+                      <span className="min-w-0">{it.product.name}</span>
+                    </div>
+                  </td>
                   <td className="py-2.5 text-right tabular-nums">{it.quantity}</td>
                   <td className="py-2.5 text-right tabular-nums text-[var(--muted)] print:text-neutral-700">
                     {formatCents(it.priceCents)}

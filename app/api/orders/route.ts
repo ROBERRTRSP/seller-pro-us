@@ -139,7 +139,9 @@ export async function GET() {
     where: { userId: session.sub },
     orderBy: { createdAt: "desc" },
     include: {
-      items: { include: { product: { select: { id: true, name: true } } } },
+      items: {
+        include: { product: { select: { id: true, name: true, imageUrl: true, imagePending: true } } },
+      },
     },
   });
 
