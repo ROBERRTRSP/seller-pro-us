@@ -37,6 +37,7 @@ export default function CarritoPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [minimumOrderCents, setMinimumOrderCents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -48,17 +49,32 @@ export default function CarritoPage() {
   const loadProducts = useCallback(async (showSpinner: boolean) => {
     if (showSpinner) setLoading(true);
     try {
-      const r = await fetch("/api/products", { cache: "no-store" });
-      const d = await r.json().catch(() => null);
-      if (!r.ok) {
+      const [productRes, minRes] = await Promise.all([
+        fetch("/api/products", { cache: "no-store" }),
+        fetch("/api/orders/minimum", { cache: "no-store" }),
+      ]);
+      const d = await productRes.json().catch(() => null);
+      const minData = await minRes.json().catch(() => null);
+      if (!productRes.ok) {
         setProducts([]);
-        setError(r.status === 401 ? "Sesión caducada. Vuelve a iniciar sesión." : "No se pudieron cargar los productos.");
+        setError(
+          productRes.status === 401
+            ? "Sesión caducada. Vuelve a iniciar sesión."
+            : "No se pudieron cargar los productos.",
+        );
         return;
       }
       if (Array.isArray(d)) setProducts(d);
       else setProducts([]);
+      if (minRes.ok && minData && typeof minData === "object" && "minimumOrderCents" in minData) {
+        const n = Math.floor(Number((minData as { minimumOrderCents?: unknown }).minimumOrderCents) || 0);
+        setMinimumOrderCents(Math.max(0, n));
+      } else {
+        setMinimumOrderCents(0);
+      }
     } catch {
       setProducts([]);
+      setMinimumOrderCents(0);
       setError("Error de red al cargar los productos.");
     } finally {
       setLoading(false);
@@ -111,6 +127,12 @@ export default function CarritoPage() {
 
   async function checkout() {
     setError("");
+    if (total < minimumOrderCents) {
+      setError(
+        `El pedido mínimo para confirmar es ${formatCents(minimumOrderCents)}. Te faltan ${formatCents(minimumOrderCents - total)}.`,
+      );
+      return;
+    }
     setSubmitting(true);
     try {
       const lines = readCart().filter((l) => l.quantity > 0);
@@ -136,6 +158,8 @@ export default function CarritoPage() {
   if (loading) {
     return <p className="text-neutral-600">Cargando…</p>;
   }
+
+  const belowMinimum = total < minimumOrderCents;
 
   return (
     <div>
@@ -194,6 +218,12 @@ export default function CarritoPage() {
       {rows.length > 0 ? (
         <div className="mt-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
           <p className="text-lg font-bold text-neutral-900">Total (a pagar al recibir): {formatCents(total)}</p>
+          {minimumOrderCents > 0 ? (
+            <p className={`mt-1 text-sm ${belowMinimum ? "text-amber-700" : "text-emerald-700"}`}>
+              Pedido mínimo: {formatCents(minimumOrderCents)}
+              {belowMinimum ? ` · Te faltan ${formatCents(minimumOrderCents - total)}.` : " · Cumplido."}
+            </p>
+          ) : null}
           {error ? (
             <p className="mt-2 text-sm text-red-600" role="alert">
               {error}
@@ -201,7 +231,7 @@ export default function CarritoPage() {
           ) : null}
           <button
             type="button"
-            disabled={submitting}
+            disabled={submitting || belowMinimum}
             onClick={checkout}
             className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-[#0071dc] py-3 text-base font-bold text-white shadow touch-manipulation hover:bg-[#005bb5] disabled:opacity-50 sm:min-h-0 sm:text-sm"
           >

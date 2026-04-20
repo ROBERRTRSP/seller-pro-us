@@ -23,13 +23,16 @@ const FIELDS: { key: keyof SiteSettingsPublic; label: string; hint?: string; mul
 
 export default function AdminSitePage() {
   const [form, setForm] = useState<SiteSettingsPublic>({ ...EMPTY_SITE_SETTINGS });
+  const [minimumOrderDollars, setMinimumOrderDollars] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
   useEffect(() => {
-    void adminFetchJson<SiteSettingsPublic & { updatedAt?: string | null }>("/api/admin/site-settings").then(
+    void adminFetchJson<
+      SiteSettingsPublic & { minimumOrderCents?: number; updatedAt?: string | null }
+    >("/api/admin/site-settings").then(
       (res) => {
         if (!res.ok) {
           setError(
@@ -41,8 +44,10 @@ export default function AdminSitePage() {
         }
         const d = res.data;
         if (d && typeof d === "object" && "storeName" in d) {
-          const { updatedAt: u, ...rest } = d;
+          const { updatedAt: u, minimumOrderCents, ...rest } = d;
           setForm(rest as SiteSettingsPublic);
+          const minCents = Math.max(0, Math.floor(Number(minimumOrderCents) || 0));
+          setMinimumOrderDollars((minCents / 100).toFixed(2));
           setUpdatedAt(u ?? null);
         }
       },
@@ -52,20 +57,32 @@ export default function AdminSitePage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    const normalized = minimumOrderDollars.trim().replace(",", ".");
+    const parsed = Math.round((Number.parseFloat(normalized || "0") || 0) * 100);
+    const minimumOrderCents = Number.isFinite(parsed) && parsed >= 0 ? parsed : NaN;
+    if (!Number.isFinite(minimumOrderCents) || minimumOrderCents < 0) {
+      setError("El pedido mínimo debe ser un número válido mayor o igual a 0.");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/admin/site-settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, minimumOrderCents }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error ?? "No se pudo guardar");
         return;
       }
-      const { updatedAt: u, ...rest } = data as SiteSettingsPublic & { updatedAt?: string | null };
+      const { updatedAt: u, minimumOrderCents: m, ...rest } = data as SiteSettingsPublic & {
+        minimumOrderCents?: number;
+        updatedAt?: string | null;
+      };
       setForm(rest as SiteSettingsPublic);
+      const minCents = Math.max(0, Math.floor(Number(m) || 0));
+      setMinimumOrderDollars((minCents / 100).toFixed(2));
       setUpdatedAt(u ?? null);
     } finally {
       setSaving(false);
@@ -88,6 +105,24 @@ export default function AdminSitePage() {
       ) : null}
 
       <form onSubmit={onSubmit} className="mt-8 max-w-2xl space-y-5">
+        <div>
+          <label htmlFor="minimumOrderDollars" className="block text-sm font-medium text-[var(--muted)]">
+            Pedido mínimo para confirmar (USD)
+          </label>
+          <input
+            id="minimumOrderDollars"
+            type="text"
+            inputMode="decimal"
+            value={minimumOrderDollars}
+            onChange={(e) => setMinimumOrderDollars(e.target.value)}
+            placeholder="0.00"
+            className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)]"
+          />
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Si es 0.00, no hay mínimo. Se valida al confirmar pedido en el carrito.
+          </p>
+        </div>
+
         {FIELDS.map(({ key, label, hint, multiline }) => (
           <div key={key}>
             <label htmlFor={key} className="block text-sm font-medium text-[var(--muted)]">

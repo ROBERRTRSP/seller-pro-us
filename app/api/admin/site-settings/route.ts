@@ -25,6 +25,12 @@ function slice(key: keyof typeof LIMITS, v: string): string {
   return v.slice(0, LIMITS[key] ?? 500);
 }
 
+function parseMinimumOrderCents(v: unknown): number {
+  const n = Math.floor(Number(v));
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return n;
+}
+
 export async function GET() {
   const gate = await requireRole(Role.ADMIN);
   if ("error" in gate && gate.error) return gate.error;
@@ -33,6 +39,7 @@ export async function GET() {
   const form = rawRowToForm(row);
   return NextResponse.json({
     ...form,
+    minimumOrderCents: row?.minimumOrderCents ?? 0,
     updatedAt: row?.updatedAt?.toISOString() ?? null,
   });
 }
@@ -67,20 +74,26 @@ export async function PATCH(req: Request) {
   for (const k of keys) {
     data[k] = slice(k, String(body[k] ?? ""));
   }
+  const minimumOrderCents = parseMinimumOrderCents(body.minimumOrderCents);
 
   await prisma.siteSettings.upsert({
     where: { id: SETTINGS_ID },
     create: {
       id: SETTINGS_ID,
       ...data,
+      minimumOrderCents,
     },
-    update: data,
+    update: {
+      ...data,
+      minimumOrderCents,
+    },
   });
 
   const row = await prisma.siteSettings.findUnique({ where: { id: SETTINGS_ID } });
   const form = rawRowToForm(row);
   return NextResponse.json({
     ...form,
+    minimumOrderCents: row?.minimumOrderCents ?? 0,
     updatedAt: row?.updatedAt?.toISOString() ?? null,
   });
 }

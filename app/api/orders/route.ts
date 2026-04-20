@@ -49,6 +49,11 @@ export async function POST(req: Request) {
   });
 
   const ids = [...new Set(merged.map((c) => c.productId))];
+  const settings = await prisma.siteSettings.findUnique({
+    where: { id: "default" },
+    select: { minimumOrderCents: true },
+  });
+  const minimumOrderCents = Math.max(0, settings?.minimumOrderCents ?? 0);
 
   try {
     const order = await prisma.$transaction(async (tx) => {
@@ -74,6 +79,9 @@ export async function POST(req: Request) {
         }
         totalCents += p.priceCents * line.quantity;
         lines.push({ productId: p.id, quantity: line.quantity, priceCents: p.priceCents });
+      }
+      if (totalCents < minimumOrderCents) {
+        throw new Error(`MIN_ORDER:${minimumOrderCents}`);
       }
 
       const order = await tx.order.create({
@@ -121,6 +129,14 @@ export async function POST(req: Request) {
         const name = e.message.slice("MAX_QTY:".length);
         return NextResponse.json(
           { error: `Máximo ${MAX_ORDER_LINE_QUANTITY} unidades por producto («${name}»).` },
+          { status: 400 },
+        );
+      }
+      if (e.message.startsWith("MIN_ORDER:")) {
+        const min = Math.max(0, Math.floor(Number(e.message.slice("MIN_ORDER:".length)) || 0));
+        const dollars = (min / 100).toFixed(2);
+        return NextResponse.json(
+          { error: `El pedido mínimo para confirmar es $${dollars}.` },
           { status: 400 },
         );
       }

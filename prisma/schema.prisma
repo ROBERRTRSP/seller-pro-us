@@ -27,6 +27,8 @@ model SiteSettings {
   heroSubtitle       String   @default("")
   heroBody           String   @default("")
   heroCtaLabel       String   @default("")
+  /** Monto mínimo (centavos) para permitir confirmar pedido. */
+  minimumOrderCents  Int      @default(0) @map("minimum_order_cents")
   updatedAt          DateTime @updatedAt
 }
 
