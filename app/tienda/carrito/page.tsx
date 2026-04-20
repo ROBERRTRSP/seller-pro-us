@@ -218,12 +218,22 @@ export default function CarritoPage() {
       {rows.length > 0 ? (
         <div className="mt-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
           <p className="text-lg font-bold text-neutral-900">Total (a pagar al recibir): {formatCents(total)}</p>
-          {minimumOrderCents > 0 ? (
-            <p className={`mt-1 text-sm ${belowMinimum ? "text-amber-700" : "text-emerald-700"}`}>
-              Pedido mínimo: {formatCents(minimumOrderCents)}
-              {belowMinimum ? ` · Te faltan ${formatCents(minimumOrderCents - total)}.` : " · Cumplido."}
-            </p>
-          ) : null}
+          <p
+            className={`mt-1 text-sm ${
+              minimumOrderCents <= 0
+                ? "text-neutral-600"
+                : belowMinimum
+                  ? "text-amber-700"
+                  : "text-emerald-700"
+            }`}
+          >
+            Pedido mínimo: {formatCents(minimumOrderCents)}
+            {minimumOrderCents <= 0
+              ? " · Sin mínimo configurado."
+              : belowMinimum
+                ? ` · Te faltan ${formatCents(minimumOrderCents - total)}.`
+                : " · Cumplido."}
+          </p>
           {error ? (
             <p className="mt-2 text-sm text-red-600" role="alert">
               {error}
